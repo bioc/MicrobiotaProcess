@@ -1,6 +1,12 @@
-# 1.1.2
+# MicrobiotaProcess 1.1.3
 
-# fix a bug. When the first rank taxa level (Kingdom) is NA.
++ change according to dplyr (v=1.0.0) (2020-08-05, Wed)
+  + remove `rename_` and `group_by_`
++ modified the angle to 90 in `ggdiffclade` when layout is `slanted` or `rectangular` (2020-08-05, Wed)
+
+# MicrobiotaProcess 1.1.2
+
++ fix a bug. When the first rank taxa level (Kingdom) is NA.
 
 Changes in version 0.99.0 (2019-08-14)
 + Submitted to Bioconductor
