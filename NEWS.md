@@ -1,12 +1,10 @@
-# MicrobiotaProcess 1.5.6
+# MicrobiotaProcess 1.4.1
 
 + convert the type of first element of assays to `matrix` to compatible with `DESeqDataSet` 
   of `DESeq2`, `test_differential_abundance` of `tidybulk`. (2021-09-09, Thu)
 + update `show` and `print` for format output of `MPSE` class. (2021-09-08, Wed)
 + update `mp_cal_abundance` use new `tidytree`. (2021-09-07, Tue)
 + introduce `include.lowest` parameter in `mp_filter_taxa`. (2021-09-07, Tue)
-
-# MicrobiotaProcess 1.5.5
 
 + update `mp_plot_ord` to display the `bioplot` for result of `cca`, `rda` and `envfit`. (2021-09-06, Mon)
 + update the vignettes of `MicrobiotaProcess`. (2021-09-04, Sat)
@@ -20,8 +18,6 @@
   the corresponding `mp_cal_abundance`, `mp_cal_alpha`, `mp_cal_rarecurve`, `mp_cal_venn`, `mp_cal_upset`
   are performed with `action="add"`. (2021-08-27, Fri)
 + fix the issue when the `rowname` or `colnames` of `SummarizedExperiment` is NULL for `as.MPSE`. (2021-08-26, Thu)
-
-# MicrobiotaProcess 1.5.4
 
 + fix the `rownames` of `assays` and `colnames` of `colData` to identical for `SummarizedExperiment(1.23.3)`. (2021-08-26, Thu)
 + add `mp_extract_refseq` for `MPSE` object. (2021-08-25, Wed)
@@ -42,8 +38,6 @@
 + add `mp_stat_taxa` to count the number and total number taxa for each sample at 
   different taxonomy levels (Kingdom, Phylum, Class, Order, Family, Genus, Species, OTU). (2021-08-03, Tue)
 
-# MicrobiotaProcess 1.5.3
-
 + rename `mp_extract_abundance` to `mp_extract_assays` from `MPSE` or `tbl_mpse`. (2021-07-31, Sat)
 + update the method to save the result of `mp_cal_clust` by introducing `action` argument. (2021-07-29, Thu).
 + update `as.phyloseq` for `MPSE` or `tbl_mpse` object. (2021-07-28, Wed)
@@ -54,8 +48,6 @@
 + add `tidydr` to convert the result of `reduce dimension` to `tbl_df`
   - such `pca`, `pcoa`, `nmds`, `rda`, `cca`. (2021-07-22, Thu)
 + optimize the `print` for `MPSE`. (2021-07-22, Thu)
-
-# MicrobiotaProcess 1.5.2
 
 + add `mp_mantel` and `mp_mrpp` for `MPSE` or `tbl_mpse` object. (2021-07-19, Mon)
 + add `mp_envfit` and update `mp_cal_dist` to support the distance calculation with continuous environment 
@@ -114,8 +106,6 @@
   ~~- This feature is useful to explore the microbiome data in taxa tree.~~ 
   This feature has been replaced by the `taxatree` slot
   
-# MicrobiotaProcess 1.5.1
-
 + add `ellipse_linewd` and `ellipse_lty` in `ggordpoint` to control 
   the width and line type of ellipse line. (2021-05-24, Mon)
 + fixed the regular expression match for the internal function 
