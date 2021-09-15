@@ -93,9 +93,10 @@ MPSE <- function(assays,
                )
 }
 
+#' @importFrom treeio Ntip
 .valid.MPSE <- function(object){
     if (!is.null(object@otutree)){
-        ntip <- treeio::Ntip(object@otutree)
+        ntip <- Ntip(object@otutree)
         if (nrow(object)!=ntip){
             rlang::abort(c("The number of tip labels of otutree is not equal the number of otu in assays.", 
                          "Please check the otutree or assays!"))
@@ -106,7 +107,7 @@ MPSE <- function(assays,
         }
     }
     if (!is.null(object@taxatree)){
-        ntip <- treeio::Ntip(object@taxatree)
+        ntip <- Ntip(object@taxatree)
         if (nrow(object) != ntip){
             rlang::abort(c("The number of tip labels of taxatree is not equal the number of otu in assays.", 
                            "Please check the taxatree or assays!"))

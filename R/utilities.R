@@ -257,3 +257,95 @@ CI <- function (x, ci = 0.95, na.rm=FALSE){
     return(c(upper = a + error, mean = a, lower = a - error))
 }
 
+setGeneric(
+    name = "drop.tip",
+    def = function( object, tip, ... )
+        standardGeneric("drop.tip")
+)
+
+setMethod("drop.tip", signature(object="treedata"),
+          function(object, tip, ...) {
+              drop.tip.treedata(object, tip, ...)
+          })
+
+setMethod("drop.tip", signature(object="phylo"),
+          function(object, tip, ...){
+              ape::drop.tip(object, tip, ...)
+          })
+
+drop.tip.treedata <- function(object, tip, ...){
+    params <- list(...)
+    if ("interactive" %in% names(params) && params$interactive){
+        message("The interactive mode is not implemented for treedata object!")
+        params$interactive <- FALSE
+    }
+    res <- build_new_labels(tree=object)
+    tree <- res$tree
+    old_and_new <- res$node2old_new_lab
+    if(is.character(tip)){
+        tip <- old_and_new[old_and_new$old %in% tip, "new"] %>% unlist(use.names=FALSE)
+    }
+    params$phy <- tree
+    params$tip <- tip
+    new_tree <- do.call(ape::drop.tip, params)
+
+    if (is.null(new_tree)){
+        return(new_tree)
+    }
+
+    trans_node_data <- old_new_node_mapping(tree, new_tree)
+    object@phylo <- build_new_tree(tree=new_tree, node2old_new_lab=old_and_new)
+
+    update_data <- function(data, trans_node_data) {
+        data <- data[match(trans_node_data$old, data$node),]
+        data$node <- trans_node_data$new
+        return(data)
+    }
+
+    if (nrow(object@data) > 0) {
+        object@data <- update_data(object@data, trans_node_data)
+    }
+
+    if (nrow(object@extraInfo) > 0) {
+        object@extraInfo <- update_data(object@extraInfo, trans_node_data)
+    }
+    return (object)
+}
+
+#' @importFrom treeio Nnode
+build_new_labels <- function (tree){
+    node2label_old <- tree %>% as_tibble() %>% dplyr::select(c("node",
+        "label"))
+    if (inherits(tree, "treedata")) {
+        tree <- tree@phylo
+    }
+    tree$tip.label <- paste0("t", seq_len(Ntip(tree)))
+    tree$node.label <- paste0("n", seq_len(Nnode(tree)))
+    node2label_new <- tree %>% as_tibble() %>% dplyr::select(c("node",
+        "label"))
+    old_and_new <- node2label_old %>% dplyr::inner_join(node2label_new,
+        by = "node") %>% dplyr::rename(old = "label.x", new = "label.y")
+    return(list(tree = tree, node2old_new_lab = old_and_new))
+}
+
+old_new_node_mapping <- function (oldtree, newtree){
+    treelab1 <- oldtree %>% as_tibble() %>% dplyr::select(c("node",
+        "label"))
+    treelab2 <- newtree %>% as_tibble() %>% dplyr::select(c("node",
+        "label"))
+    node_map <- dplyr::inner_join(treelab1, treelab2, by = "label") %>%
+        dplyr::select(c("node.x", "node.y")) %>% dplyr::rename(c(old = "node.x",
+        new = "node.y"))
+    return(node_map)
+}
+
+build_new_tree <- function (tree, node2old_new_lab){
+    treeda <- tree %>% as_tibble()
+    treeda1 <- treeda %>% dplyr::filter(.data$label %in% node2old_new_lab$new)
+    treeda2 <- treeda %>% dplyr::filter(!(.data$label %in% node2old_new_lab$new))
+    treeda1$label <- node2old_new_lab[match(treeda1$label, node2old_new_lab$new),
+        "old"] %>% unlist(use.names = FALSE)
+    treeda <- rbind(treeda1, treeda2)
+    tree <- treeda[order(treeda$node), ] %>% as.phylo()
+    return(tree)
+}

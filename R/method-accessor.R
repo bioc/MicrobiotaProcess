@@ -695,7 +695,6 @@ setMethod("mp_extract_dist", signature(x="grouped_df_mpse"), .internal_extract_d
     }
 }
 
-#' @importFrom treeio drop.tip
 .extract_tree_at_tiplevel <- function(tree, tip.level){
     if (tip.level=="OTU"){
         return(tree)
@@ -936,7 +935,7 @@ rename_tiplab <- function(treedata, oldname, newname){
         rmotus <- setdiff(tree@phylo$tip.label, newnm)
     }
     if (length(rmotus) > 0 && length(rmotus) != treeio::Ntip(tree)){
-        otutree <- treeio::drop.tip(tree, tip=rmotus, collapse.singles=collapse.singles)
+        otutree <- drop.tip(tree, tip=rmotus, collapse.singles=collapse.singles)
     }else{
         otutree <- tree
     }

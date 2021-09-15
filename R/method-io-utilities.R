@@ -217,11 +217,11 @@
             rmotus <- NULL
         }
         if (length(rmotus) > 0){
-            otutree <- treeio::drop.tip(otutree, tip=rmotus)
+            otutree <- drop.tip(otutree, tip=rmotus)
             otuda <- otuda[match(flagn, rownm), , drop = FALSE]
             rownm <- rownames(otuda)
             if (!is.null(taxatree)){
-                taxatree <- treeio::drop.tip(taxatree, tip=setdiff(taxatree@phylo$tip.label, flagn), collapse.singles=FALSE)
+                taxatree <- drop.tip(taxatree, tip=setdiff(taxatree@phylo$tip.label, flagn), collapse.singles=FALSE)
             }else{
                 taxatree <- NULL
             }
@@ -245,12 +245,12 @@
         if (length(rmotus) > 0){
             otuda <- otuda[match(flagn, rownm), , drop = FALSE]
             if (!is.null(otutree) && length(rmotus) != treeio::Ntip(otutree)){
-                otutree <- treeio::drop.tip(otutree, tip=rmotus)
+                otutree <- drop.tip(otutree, tip=rmotus)
             }else{
                 otutree <- NULL
             }
             if (!is.null(taxatree) && length(rmotus) != treeio::Ntip(taxatree)){
-                taxatree <- treeio::drop.tip(taxatree, tip=rmotus, collapse.singles=FALSE)
+                taxatree <- drop.tip(taxatree, tip=rmotus, collapse.singles=FALSE)
             }else{
                 taxatree <- NULL
             }
