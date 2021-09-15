@@ -37,7 +37,7 @@ Imports:
   tidyselect,
   SummarizedExperiment,
   foreach,
-  treeio (>= 1.17.2)
+  treeio
 Suggests:
   rmarkdown,
   prettydoc,
