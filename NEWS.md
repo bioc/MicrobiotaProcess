@@ -1,4 +1,7 @@
-# MicrobiotaProcess 1.4.1
+# MicrobiotaProcess 1.4.2
+
++ fix bug of `mp_plot_upset`. (2021-09-10, Fri)
++ update the `mp_plot_ord`. (2021-09-13, Mon)
 
 + convert the type of first element of assays to `matrix` to compatible with `DESeqDataSet` 
   of `DESeq2`, `test_differential_abundance` of `tidybulk`. (2021-09-09, Thu)

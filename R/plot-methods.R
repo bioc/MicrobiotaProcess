@@ -393,6 +393,7 @@ setGeneric("mp_plot_upset", function(.data, .group, .upset=NULL, ...) standardGe
     p <- .data %>%
          mp_extract_feature() %>%
          dplyr::select(!!rlang::sym("OTU"), !!.upset) %>%
+         dplyr::filter(vapply(!!.upset, length, numeric(1))>0) %>%
          ggplot(mapping=aes(x=!!.upset)) +
          geom_bar() +
          ggupset::scale_x_upset() +
@@ -941,12 +942,14 @@ setGeneric("mp_plot_ord", function(
            side.x <- NULL
        }
 
-       p <- p +
+       p <- suppressMessages(
+            p +
             side.y + 
             ggside::scale_xsidey_discrete() + 
             side.x +
             ggside::scale_ysidex_discrete() + 
             theme(ggside.panel.scale = 0.25)
+            )
     }
 
     if (show.sample){
