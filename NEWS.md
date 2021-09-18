@@ -1,5 +1,6 @@
-# MicrobiotaProcess 1.4.2
+# MicrobiotaProcess 1.4.3
 
++ fix issues of `vignettes`. (2021-09-18, Sat)
 + fix bug of `mp_plot_upset`. (2021-09-10, Fri)
 + update the `mp_plot_ord`. (2021-09-13, Mon)
 
