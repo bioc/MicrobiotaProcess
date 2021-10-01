@@ -1,3 +1,8 @@
+# MicrobiotaProcess 1.4.4
+
++ fix the bug of `AsIs` list class in `unnest` for the `tidyr` (>= 1.1.4). (2021-10-01, Fri)
++ add `mp_aggregate` function. (2021-09-26, Sun)
+
 # MicrobiotaProcess 1.4.3
 
 + fix issues of `vignettes`. (2021-09-18, Sat)
