@@ -1,4 +1,4 @@
-# MicrobiotaProcess 1.7.1
+# MicrobiotaProcess 1.6.1
 
 + fix the issue when using `filter` only return a `assays` contained one feature (nrow=1). (2021-11-05, Fri)
 + fix the error of `rownames<-` when `rownames` of `MPSE` is NULL. (2021-11-04, Thu)
