@@ -12,8 +12,8 @@ setOldClass("prcomp")
 #' @noRd
 setOldClass("tbl_mpse")
 
-#' @noRd
-phyloseq <- methods::getClassDef("phyloseq", "phyloseq") %>% suppressMessages()
+# #' @noRd
+# phyloseq <- methods::getClassDef("phyloseq", "phyloseq") %>% suppressMessages()
 
 #' @title grouped_df_mpse class
 #' @name grouped_df_mpse-class
@@ -65,8 +65,15 @@ setClass("MPSE",
 #' @return MPSE object
 #' @importFrom methods new
 #' @export
+#' @examples
+#' set.seed(123)
+#' xx <- matrix(abs(round(rnorm(100, sd=4), 0)), 10)
+#' xx <- data.frame(xx)
+#' rownames(xx) <- paste0("row", seq_len(10))
+#' mpse <- MPSE(assays=xx)
+#' mpse
 MPSE <- function(assays,
-                 colData,
+                 colData = NULL,
                  otutree = NULL, 
                  taxatree = NULL, 
                  refseq = NULL, 
@@ -89,7 +96,16 @@ MPSE <- function(assays,
 
     names(assays) <- clnm
 
-    se <- SummarizedExperiment::SummarizedExperiment(assays=assays, colData=colData, ...)
+    if (!is.null(colData)){
+        colData %<>% avoid_conflict_names()
+        se <- SummarizedExperiment::SummarizedExperiment(assays=assays, colData=colData, ...)
+    }else{
+        se <- SummarizedExperiment::SummarizedExperiment(assays=assays, ...)
+    }
+
+    if (!is.null(otutree) && inherits(otutree, "phylo")){
+        otutree <- treeio::as.treedata(otutree)
+    }
     mpse <- new("MPSE",
                 se,
                 otutree = otutree,

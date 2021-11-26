@@ -57,12 +57,13 @@
 #' mouse.time.mpse %<>%
 #'   mp_rrarefy() 
 #' mouse.time.mpse
-#' mouse.time.mpse %>%
+#' mouse.time.mpse %<>%
 #'   mp_diff_analysis(.abundance=RareAbundance, 
 #'                    .group=time, 
 #'                    first.test.alpha=0.01,
-#'                    action="get") %>%
-#' ggdiffclade(linewd=0.1)
+#'                    action="add") 
+#' library(ggplot2)
+#' mouse.time.mpse %>% mp_plot_diff_res()
 setGeneric("mp_diff_analysis", function(.data, 
                                         .abundance, 
                                         .group, 
@@ -160,8 +161,8 @@ setGeneric("mp_diff_analysis", function(.data,
          .sec.group <- NULL
      }
      
-     if (relative){ 
-         if(force){
+     if (relative){
+         if (force){
              abundance.nm <- paste0("Rel", rlang::as_name(.abundance), "BySample")
          }else{
              abundance.nm <- "RelRareAbundanceBySample"
@@ -174,7 +175,8 @@ setGeneric("mp_diff_analysis", function(.data,
          }
      }
 
-     if (!any(grepl(paste0("^", abundance.nm), .data %>% mp_extract_feature() %>% colnames()))){
+     AbundBy <- abundance.nm %>% gsub("^Rel", "", .)
+     if (!any(grepl(paste0("^", AbundBy), .data %>% mp_extract_feature() %>% colnames()))){
          .data %<>% mp_cal_abundance(.abundance=!!.abundance, force=force, relative=relative)
      }
 
@@ -271,7 +273,8 @@ setGeneric("mp_diff_analysis", function(.data,
                                           classlevels=leaveclasslevels) 
      second.test.sig.vars.vectors <- second.test.sig.vars %>% get_secondvarlist()
      if (!is.null(normalization)){
-         f_tb <- f_tb * normalization
+         normalization <- normalization / 100
+         f_tb <- f_tb * normalization 
      }
      dameta <- merge(f_tb, sampleda, by=0) %>% 
                tibble::column_to_rownames(var="Row.names") %>%
@@ -362,3 +365,296 @@ setMethod("mp_diff_analysis", signature(.data="tbl_mpse"), .internal_mp_diff_ana
 #' @aliases mp_diff_analysis,grouped_df_mpse
 #' @exportMethod mp_diff_analysis
 setMethod("mp_diff_analysis", signature(.data="grouped_df_mpse"), .internal_mp_diff_analysis)
+
+
+#' The visualization of result of mp_diff_analysis
+#' @rdname mp_plot_diff_res-methods
+#' @param .data MPSE or tbl_mpse after run mp_diff_analysis with \code{action="add"}
+#' @param layout the type of tree layout, should be one of "rectangular", "roundrect", "ellipse", 
+#' "circular", "slanted", "radial", "inward_circular".
+#' @param tree.type one of 'taxatree' and 'otutree', taxatree is the taxonomy class tree
+#' 'otutree' is the phylogenetic tree built with the representative sequences.
+#' @param .taxa.class character the name of taxonomy class level, default is NULL, meaning it will
+#' extract the phylum annotation automatically.
+#' @param tiplab.size numeric the size of tiplab, default is 2.
+#' @param offset.abun numeric the gap (width) (relative width to tree) between the tree and abundance 
+#' panel, default is 0.04.
+#' @param pwidth.abun numeric the panel width (relative width to tree) of abundance panel, 
+#' default is 0.3 .
+#' @param offset.effsize numeric the gap (width) (relative width to tree) between the tree and 
+#' effect size panel, default is 0.3 .
+#' @param pwidth.effsize numeric the panel width (relative width to tree) of effect size panel, 
+#' default is 0.5 .
+#' @param group.abun logical whether to display the relative abundance of group instead of sample,
+#' default is FALSE.
+#' @param tiplab.linetype numeric the type of line for adding line if 'tree.type' is 'otutree',
+#' default is 3 .
+#' @param ... additional parameters, meaningless now.
+#' @export
+setGeneric("mp_plot_diff_res", 
+                function(
+                    .data, 
+                    layout = "radial", 
+                    tree.type = "taxatree", 
+                    .taxa.class = NULL, 
+                    tiplab.size = 2,
+                    offset.abun = 0.04,
+                    pwidth.abun = 0.8,
+                    offset.effsize = 0.3,
+                    pwidth.effsize = 0.5,
+                    group.abun = FALSE,
+                    tiplab.linetype = 3,
+                    ...) 
+                    standardGeneric("mp_plot_diff_res")
+)
+
+
+#' @importFrom ggplot2 geom_col
+#' @importFrom ggtreeExtra geom_fruit
+.internal_mp_plot_diff_res <- function(.data,
+                                       layout = "radial",
+                                       tree.type = "taxatree",
+                                       .taxa.class = NULL,
+                                       tiplab.size = 2,
+                                       offset.abun = 0.04,
+                                       pwidth.abun = 0.8,
+                                       offset.effsize = 0.3,
+                                       pwidth.effsize = 0.5,
+                                       group.abun = FALSE,
+                                       tiplab.linetype = 3,
+                                       ...
+                                      ){
+    .taxa.class <- rlang::enquo(.taxa.class)
+    layout %<>% match.arg(c("rectangular", "roundrect", "ellipse", "circular", 
+                            "slanted", "radial", "inward_circular"))
+
+    tree.type %<>% match.arg(c("taxatree", "otutree"))
+
+    if (tree.type == 'otutree'){
+        anno.tree <- .data %>% mp_extract_tree(type="otutree") %>% suppressMessages()
+        if (is.null(anno.tree)){
+            stop_wrap("The otutree slot of the MPSE class is empty, you can try to 
+                       select taxatree by setting tree.type to 'taxatree'.")
+        }else{
+            taxada <- .data %>% mp_extract_taxonomy() %>% suppressMessages()
+            if (!is.null(taxada)){
+                anno.tree %<>% dplyr::left_join(taxada, by=c("label"="OTU"))
+                if (rlang::quo_is_null(.taxa.class)){
+                    .taxa.class <- rlang::sym(colnames(taxada)[3])
+                }
+            }
+        }
+    }
+    
+    if (tree.type == "taxatree"){
+        anno.tree <- .data %>% mp_extract_tree() %>% suppressMessages()
+        if (is.null(anno.tree)){
+            stop_wrap("The taxatree slot of the MPSE class is empty, you can try to 
+                       select otutree by setting tree.type to 'otutree'.")
+        }else{
+            if (rlang::quo_is_null(.taxa.class)){
+                .taxa.class <- anno.tree %>% 
+                               tidytree::filter(!!rlang::sym("nodeDepth")==2, keep.td=FALSE) %>% 
+                               pull(!!rlang::sym("nodeClass")) %>% 
+                               unique()
+                .taxa.class <- rlang::sym(.taxa.class)
+            }
+        }
+    }
+
+    nsample <- .data %>% mp_extract_sample() %>% nrow()
+    field.da.nm <- tidytree::get.fields(anno.tree)
+    if ("LDAmean" %in% field.da.nm){
+        x.bar <- 'LDAmean'
+        x.bar.title <- "log10(LDA)"
+    }else{
+        x.bar <- "MDAmean"
+        x.bar.title <- "MDA"
+    }
+    
+    sign.field <- field.da.nm[grep("^Sign_", field.da.nm)][1]
+
+    group.nm <- gsub("^Sign_", "", sign.field)
+    flag <- grepl(paste0("By", group.nm), field.da.nm)
+
+    if (nsample > 50 || group.abun){
+        if (!any(flag)){
+            stop_wrap("The relative abundance of each group will be displayed, but the
+                       relative abundance of each group is not calculated, please run 
+                       the mp_cal_abundance specified group argument before !")
+        }
+        abun.col <- field.da.nm[flag]
+    }else{
+        abun.col <- field.da.nm[grepl("BySample", field.da.nm)]
+    }
+    abun.col <- abun.col[1]
+    x.abun.col <- anno.tree %>% 
+                  dplyr::select(!!rlang::sym(abun.col)) %>% 
+                  tidyr::unnest(!!rlang::sym(abun.col)) %>%
+                  colnames()
+    x.abun.col <- x.abun.col[grepl("^Rel", x.abun.col)]
+
+    if (tree.type == "otutree"){
+        p1 <- ggtree(
+                anno.tree,
+                layout = layout,
+                size = 0.3
+              )
+        if (!is.null(taxada)){
+            p1 <- p1 +
+                  geom_tiplab(
+                    align = TRUE,
+                    size = 0,
+                    linetype = tiplab.linetype
+                  ) +
+                  geom_fruit(
+                    data = td_filter(!!rlang::sym("isTip")),
+                    geom = geom_point,
+                    mapping = aes(colour = !!.taxa.class),
+                    size = 1.5,
+                    offset = 0
+                  )    
+        }
+    }
+
+    if (tree.type == "taxatree"){
+        p1 <- suppressWarnings(
+                ggtree(
+                  anno.tree,
+                  layout = layout,
+                  size = 0.3
+                  ) +
+                geom_point(
+                  data = td_filter(!.data$isTip),
+                  fill = "white",
+                  size = 1,
+                  shape = 21
+                )
+              )
+        
+        p1 <- suppressWarnings(
+                p1 +
+                ggtree::geom_hilight(
+                  data = td_filter(!!rlang::sym("nodeClass")==rlang::as_name(.taxa.class)),
+                  mapping = aes(
+                                node = !!rlang::sym("node"), 
+                                fill = !!rlang::sym("label")
+                            )
+                )
+              )
+    }
+
+    if (nsample > 50 || group.abun){
+         mapping <- aes(x=!!rlang::sym(group.nm), size = !!rlang::sym(x.abun.col), 
+                        fill = !!rlang::sym(group.nm), subset = !!rlang::sym(x.abun.col) > 0) 
+         n.pwidth <- .data %>%
+                      mp_extract_sample() %>%
+                      dplyr::pull(!!rlang::sym(group.nm)) %>%
+                      unique() %>% length()    
+    }else{
+         mapping <- aes(x=forcats::fct_reorder(!!rlang::sym("Sample"), !!rlang::sym(group.nm), .fun=min),
+                        size = !!rlang::sym(x.abun.col), fill = !!rlang::sym(group.nm), 
+                        fill = !!rlang::sym(group.nm), subset = !!rlang::sym(x.abun.col) > 0
+                    )
+         n.pwidth <- ncol(.data)
+    }
+    p2 <- suppressWarnings(
+            p1 + 
+            ggnewscale::new_scale_fill() +
+            geom_fruit(
+               data = td_unnest(!!rlang::sym(abun.col)),
+               geom = geom_star,
+               mapping = mapping,
+               starshape = 13,
+               starstroke = 0.25,
+               offset = offset.abun,
+               pwidth = pwidth.abun,
+               grid.params = list(linetype=2)
+            ) +  
+            scale_size_continuous(
+               name="Relative Abundance (%)",
+               range = c(1, 3)
+            )
+          )
+
+    if (nsample > 50 || group.abun){
+        p3 <- suppressWarnings(
+                p2 + 
+                geom_tiplab(size=tiplab.size, offset = max(p2$data$xmaxtmp, na.rm=TRUE) - 0.98*max(p2$data$x, na.rm=TRUE), 
+                            align = TRUE, 
+                            linetype=NA)
+              )
+    }else{
+        p3 <- suppressWarnings(
+                p2 + 
+                geom_tiplab(size=tiplab.size, offset = max(p2$data$xmaxtmp, na.rm=TRUE) - 0.95*max(p2$data$x, na.rm=TRUE))
+              )
+    }
+    # display the LDA of significant OTU.
+    n.char <- max(nchar(p3$data[p3$data$isTip, "label", drop=TRUE]), na.rm=TRUE)
+    title.height <- 4.4e-06 * sum(p3$data$isTip) 
+    p4 <- suppressWarnings(
+            p3 +
+            ggnewscale::new_scale_fill() +
+            geom_fruit(
+               data = td_filter(!is.na(!!rlang::sym(x.bar))),
+               geom = geom_col,
+               mapping = aes(
+                             x = !!rlang::sym(x.bar),
+                             fill = !!rlang::sym(sign.field)
+                             ),
+               orientation = "y",
+               offset = offset.effsize,
+               pwidth = pwidth.effsize,
+               axis.params = list(axis = "x",
+                                  title = x.bar.title,
+                                  title.height = title.height,
+                                  title.size = 2,
+                                  text.size = 1.8,
+                                  vjust = 1),
+               grid.params = list(linetype = 2)
+              )
+          )
+
+    # display the significant (FDR) taxonomy after kruskal.test (default)
+    p5 <- suppressWarnings(
+            p4 +
+            ggnewscale::new_scale("size") +
+            geom_point(
+               data=td_filter(!is.na(!!rlang::sym("fdr"))),
+               mapping = aes(size = -log10(!!rlang::sym("fdr")),
+                              fill = !!rlang::sym(sign.field),
+                             ),
+               shape = 21
+            ) +
+            scale_size_continuous(range=c(1, 3)) #+
+            #scale_fill_manual(values=c("#1B9E77", "#D95F02"))
+          )
+    
+    p6 <- suppressWarnings(
+            p5 + theme(
+               legend.key.height = unit(0.3, "cm"),
+               legend.key.width = unit(0.3, "cm"),
+               legend.spacing.y = unit(0.02, "cm"),
+               legend.text = element_text(size = 7),
+               legend.title = element_text(size = 9),
+              )
+          )
+
+    return (p6)
+}
+
+#' @rdname mp_plot_diff_res-methods
+#' @aliases mp_plot_diff_res,MPSE
+#' @export mp_plot_diff_res
+setMethod("mp_plot_diff_res", signature(.data='MPSE'), .internal_mp_plot_diff_res)
+
+#' @rdname mp_plot_diff_res-methods
+#' @aliases mp_plot_diff_res,tbl_mpse
+#' @export mp_plot_diff_res
+setMethod("mp_plot_diff_res", signature(.data="tbl_mpse"), .internal_mp_plot_diff_res)
+
+#' @rdname mp_plot_diff_res-methods
+#' @aliases mp_plot_diff_res,grouped_df_mpse
+#' @export mp_plot_diff_res
+setMethod("mp_plot_diff_res", signature(.data="grouped_df_mpse"), .internal_mp_plot_diff_res)

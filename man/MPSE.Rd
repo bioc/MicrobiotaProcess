@@ -4,7 +4,14 @@
 \alias{MPSE}
 \title{Construct a MPSE object}
 \usage{
-MPSE(assays, colData, otutree = NULL, taxatree = NULL, refseq = NULL, ...)
+MPSE(
+  assays,
+  colData = NULL,
+  otutree = NULL,
+  taxatree = NULL,
+  refseq = NULL,
+  ...
+)
 }
 \arguments{
 \item{assays}{A 'list' or 'SimpleList' of matrix-like elements
@@ -30,4 +37,12 @@ MPSE object
 }
 \description{
 Construct a MPSE object
+}
+\examples{
+set.seed(123)
+xx <- matrix(abs(round(rnorm(100, sd=4), 0)), 10)
+xx <- data.frame(xx)
+rownames(xx) <- paste0("row", seq_len(10))
+mpse <- MPSE(assays=xx)
+mpse
 }

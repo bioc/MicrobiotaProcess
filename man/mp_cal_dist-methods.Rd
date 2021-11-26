@@ -8,7 +8,7 @@
 \alias{mp_cal_dist,tbl_mpse}
 \alias{mp_cal_dist,grouped_df_mpse-method}
 \alias{mp_cal_dist,grouped_df_mpse}
-\title{Calculate the distances between the samples with specified abundance.}
+\title{Calculate the distances between the samples or features with specified abundance.}
 \usage{
 mp_cal_dist(
   .data,
@@ -17,6 +17,7 @@ mp_cal_dist(
   distmethod = "bray",
   action = "add",
   scale = FALSE,
+  cal.feature.dist = FALSE,
   ...
 )
 
@@ -27,6 +28,7 @@ mp_cal_dist(
   distmethod = "bray",
   action = "add",
   scale = FALSE,
+  cal.feature.dist = FALSE,
   ...
 )
 
@@ -37,6 +39,7 @@ mp_cal_dist(
   distmethod = "bray",
   action = "add",
   scale = FALSE,
+  cal.feature.dist = FALSE,
   ...
 )
 
@@ -47,6 +50,7 @@ mp_cal_dist(
   distmethod = "bray",
   action = "add",
   scale = FALSE,
+  cal.feature.dist = FALSE,
   ...
 )
 }
@@ -61,8 +65,8 @@ default is NULL.}
 \item{distmethod}{character the method to calculate distance.
 option is "manhattan", "euclidean", "canberra", "bray", "kulczynski", 
 "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup",
-"binomial", "chao", "cao" (implemented in vegdist of vegan), and
-"w", "-1", "c", "wb", "r", "I", "e", "t", "me", "j", "sor", "m", "-2", "co"
+"binomial", "chao", "cao", "mahalanobis", "chisq", "chord" (implemented in vegdist of 
+vegan), and "w", "-1", "c", "wb", "r", "I", "e", "t", "me", "j", "sor", "m", "-2", "co"
 "cc", "g", "-3", "l", "19", "hk", "rlb", "sim", "gl", "z" (implemented in 
 betadiver of vegan), "maximum", "binary", "minkowski" (implemented in dist 
 of stats), "unifrac", "weighted unifrac" (implemented in phyloseq),}
@@ -73,6 +77,9 @@ a non-redundant tibble with the distance information. "get" return 'dist' object
 \item{scale}{logical whether scale the metric of environment (.env is provided) before
 the distance was calculated, default is FALSE. The environment matrix can be processed
 when it was joined to the MPSE or tbl_mpse object.}
+
+\item{cal.feature.dist}{logical whether to calculate the distance between the features.
+default is FALSE, meaning calculate the distance between the samples.}
 
 \item{...}{additional parameters.
 
@@ -90,7 +97,7 @@ some dot arguments if \code{distmethod} is \code{unifrac} or \code{weighted unif
 update object or tibble according the 'action'
 }
 \description{
-Calculate the distances between the samples with specified abundance.
+Calculate the distances between the samples or features with specified abundance.
 }
 \examples{
 data(mouse.time.mpse)
@@ -99,12 +106,36 @@ mouse.time.mpse \%<>\%
     mp_cal_dist(.abundance=hellinger, distmethod="bray")
 mouse.time.mpse
 p1 <- mouse.time.mpse \%>\%
-        mp_plot_dist(.distmethod=bray)
+        mp_plot_dist(.distmethod = bray)
 p2 <- mouse.time.mpse \%>\%
-        mp_plot_dist(.distmethod=bray, .group=time, group.test=TRUE)
+        mp_plot_dist(.distmethod = bray, .group = time, group.test = TRUE)
 p3 <- mouse.time.mpse \%>\%
-        mp_plot_dist(.distmethod=bray, .group=time)
-
+        mp_plot_dist(.distmethod = bray, .group = time)
+# adjust the legend of heatmap of distance between the samples.
+# the p3 is a aplot object, we define set_scale_theme to adjust the 
+# character (color, size or legend size) of figure with specified 
+# 'aes_var' according to legend title. 
+library(ggplot2)
+p3 \%>\% 
+   set_scale_theme(
+     x = scale_size_continuous(
+       range = c(0.1, 4), 
+       guide = guide_legend(keywidth = 0.5, keyheight = 1)), 
+     aes_var = bray
+   ) \%>\% 
+   set_scale_theme(
+     x = scale_colour_gradient(
+       guide = guide_legend(keywidth = 0.5, keyheight = 1)), 
+     aes_var = bray
+   ) \%>\% 
+   set_scale_theme(
+     x = scale_fill_manual(values = c("orangered", "deepskyblue"), 
+       guide = guide_legend(keywidth = 0.5, keyheight = 0.5, label.theme = element_text(size=6))), 
+     aes_var = time) \%>\% 
+   set_scale_theme(
+     x = theme(axis.text=element_text(size=6), panel.background=element_blank()), 
+     aes_var = bray
+   )
 \dontrun{
 # Visualization manual
 library(ggplot2)

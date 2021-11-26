@@ -14,6 +14,7 @@
 #' @examples
 #' \dontrun{
 #' data(test_otu_data)
+#' test_otu_data %<>% as.phyloseq()
 #' distclass <- get_dist(test_otu_data)
 #' hcsample <- get_clust(distclass)
 #' }
@@ -73,7 +74,7 @@ get_dist.phyloseq <- function(obj, distmethod="euclidean", method="hellinger",..
 }
 
 
-#' Calculate the distances between the samples with specified abundance.
+#' Calculate the distances between the samples or features with specified abundance.
 #'
 #' @rdname mp_cal_dist-methods
 #' @param .data MPSE or tbl_mpse object
@@ -83,8 +84,8 @@ get_dist.phyloseq <- function(obj, distmethod="euclidean", method="hellinger",..
 #' @param distmethod character the method to calculate distance.
 #' option is "manhattan", "euclidean", "canberra", "bray", "kulczynski", 
 #' "jaccard", "gower", "altGower", "morisita", "horn", "mountford", "raup",
-#' "binomial", "chao", "cao" (implemented in vegdist of vegan), and
-#' "w", "-1", "c", "wb", "r", "I", "e", "t", "me", "j", "sor", "m", "-2", "co"
+#' "binomial", "chao", "cao", "mahalanobis", "chisq", "chord" (implemented in vegdist of 
+#' vegan), and "w", "-1", "c", "wb", "r", "I", "e", "t", "me", "j", "sor", "m", "-2", "co"
 #' "cc", "g", "-3", "l", "19", "hk", "rlb", "sim", "gl", "z" (implemented in 
 #' betadiver of vegan), "maximum", "binary", "minkowski" (implemented in dist 
 #' of stats), "unifrac", "weighted unifrac" (implemented in phyloseq),
@@ -93,6 +94,8 @@ get_dist.phyloseq <- function(obj, distmethod="euclidean", method="hellinger",..
 #' @param scale logical whether scale the metric of environment (.env is provided) before
 #' the distance was calculated, default is FALSE. The environment matrix can be processed
 #' when it was joined to the MPSE or tbl_mpse object.
+#' @param cal.feature.dist logical whether to calculate the distance between the features.
+#' default is FALSE, meaning calculate the distance between the samples.
 #' @param ... additional parameters.
 #'
 #' some dot arguments if \code{distmethod} is \code{unifrac} or \code{weighted unifrac}:
@@ -115,12 +118,36 @@ get_dist.phyloseq <- function(obj, distmethod="euclidean", method="hellinger",..
 #'     mp_cal_dist(.abundance=hellinger, distmethod="bray")
 #' mouse.time.mpse
 #' p1 <- mouse.time.mpse %>%
-#'         mp_plot_dist(.distmethod=bray)
+#'         mp_plot_dist(.distmethod = bray)
 #' p2 <- mouse.time.mpse %>%
-#'         mp_plot_dist(.distmethod=bray, .group=time, group.test=TRUE)
+#'         mp_plot_dist(.distmethod = bray, .group = time, group.test = TRUE)
 #' p3 <- mouse.time.mpse %>%
-#'         mp_plot_dist(.distmethod=bray, .group=time)
-#' 
+#'         mp_plot_dist(.distmethod = bray, .group = time)
+#' # adjust the legend of heatmap of distance between the samples.
+#' # the p3 is a aplot object, we define set_scale_theme to adjust the 
+#' # character (color, size or legend size) of figure with specified 
+#' # 'aes_var' according to legend title. 
+#' library(ggplot2)
+#' p3 %>% 
+#'    set_scale_theme(
+#'      x = scale_size_continuous(
+#'        range = c(0.1, 4), 
+#'        guide = guide_legend(keywidth = 0.5, keyheight = 1)), 
+#'      aes_var = bray
+#'    ) %>% 
+#'    set_scale_theme(
+#'      x = scale_colour_gradient(
+#'        guide = guide_legend(keywidth = 0.5, keyheight = 1)), 
+#'      aes_var = bray
+#'    ) %>% 
+#'    set_scale_theme(
+#'      x = scale_fill_manual(values = c("orangered", "deepskyblue"), 
+#'        guide = guide_legend(keywidth = 0.5, keyheight = 0.5, label.theme = element_text(size=6))), 
+#'      aes_var = time) %>% 
+#'    set_scale_theme(
+#'      x = theme(axis.text=element_text(size=6), panel.background=element_blank()), 
+#'      aes_var = bray
+#'    )
 #' \dontrun{
 #' # Visualization manual
 #' library(ggplot2)
@@ -134,13 +161,19 @@ get_dist.phyloseq <- function(obj, distmethod="euclidean", method="hellinger",..
 #'   xlab(NULL) + 
 #'   theme(legend.position="none")
 #' }
-setGeneric("mp_cal_dist", function(.data, .abundance, .env=NULL, distmethod="bray", action="add", scale=FALSE, ...)standardGeneric("mp_cal_dist"))
+setGeneric("mp_cal_dist", function(.data, .abundance, .env=NULL, distmethod="bray", action="add", scale=FALSE, cal.feature.dist=FALSE, ...)standardGeneric("mp_cal_dist"))
 
 #' @rdname mp_cal_dist-methods
 #' @aliases mp_cal_dist,MPSE
 #' @importFrom rlang :=
 #' @exportMethod mp_cal_dist
-setMethod("mp_cal_dist", signature(.data="MPSE"), function(.data, .abundance, .env=NULL, distmethod="bray", action="add", scale=FALSE, ...){
+setMethod("mp_cal_dist", signature(.data="MPSE"), function(.data, .abundance, .env=NULL, distmethod="bray", action="add", scale=FALSE, cal.feature.dist=FALSE, ...){
+    if (cal.feature.dist){
+        action="get"
+        byRow = TRUE
+    }else{
+        byRow = FALSE
+    }
     
     action %<>% match.arg(c("add", "get", "only"))
 
@@ -195,7 +228,8 @@ setMethod("mp_cal_dist", signature(.data="MPSE"), function(.data, .abundance, .e
                 as_tibble(rownames="Sample") %>%
 				modify_AsIs_list() %>%
                 tidyr::unnest() %>%
-                suppressWarnings() %>% 
+                suppressWarnings() %>%
+                dplyr::mutate_if(is.factor, as.character) %>% 
                 tidyr::pivot_wider(id_cols="Sample", 
                                    names_from=vapply(., is.character, logical(1)) %>% 
                                               select_true_nm(rm="Sample"), 
@@ -211,7 +245,7 @@ setMethod("mp_cal_dist", signature(.data="MPSE"), function(.data, .abundance, .e
     }else{
 
         da <- .data %>% 
-              mp_extract_assays(.abundance=!!.abundance, byRow=FALSE)
+              mp_extract_assays(.abundance=!!.abundance, byRow=byRow)
         distsampley <- paste0(distmethod, "Sampley")
     }
 
@@ -236,8 +270,9 @@ setMethod("mp_cal_dist", signature(.data="MPSE"), function(.data, .abundance, .e
 
     dat <- da %>% 
         as.matrix %>% 
-        corrr::as_cordf(diagonal=0) %>% 
-        corrr::stretch(na.rm=FALSE, remove.dups=TRUE) %>%
+        corrr::as_cordf(diagonal=0) %>%
+        corrr::shave() %>% 
+        corrr::stretch(na.rm=TRUE) %>%
         dplyr::rename(!!distmethod:="r", !!distsampley:="y") %>% 
         tidyr::nest(!!distmethod:=c(!!as.symbol(distsampley), !!as.symbol(distmethod)))
 
@@ -258,7 +293,13 @@ setMethod("mp_cal_dist", signature(.data="MPSE"), function(.data, .abundance, .e
 })
 
 
-.internal_cal_dist <- function(.data, .abundance, .env=NULL, distmethod="bray", action="add", scale=FALSE, ...){
+.internal_cal_dist <- function(.data, .abundance, .env=NULL, distmethod="bray", action="add", scale=FALSE, cal.feature.dist=FALSE, ...){
+    if (cal.feature.dist){
+        action = "get"
+        byRow = TRUE
+    }else{
+        byRow = FALSE
+    }
     action %<>% match.arg(c("add", "get", "only"))
 
     .abundance <- rlang::enquo(.abundance)
@@ -327,7 +368,7 @@ setMethod("mp_cal_dist", signature(.data="MPSE"), function(.data, .abundance, .e
     }else{
 
         da <- .data %>%
-              mp_extract_assays(.abundance=!!.abundance, byRow=FALSE)
+              mp_extract_assays(.abundance=!!.abundance, byRow=byRow)
         distsampley <- paste0(distmethod, "Sampley")
     }    
 
@@ -353,7 +394,8 @@ setMethod("mp_cal_dist", signature(.data="MPSE"), function(.data, .abundance, .e
     dat <- da %>%
         as.matrix %>%
         corrr::as_cordf(diagonal=0) %>%
-        corrr::stretch(na.rm=FALSE, remove.dups=TRUE) %>%
+        corrr::shave() %>%
+        corrr::stretch(na.rm=TRUE) %>%
         dplyr::rename(!!distmethod:="r", !!distsampley:="y") %>%
         tidyr::nest(!!distmethod:=c(!!as.symbol(distsampley), !!as.symbol(distmethod)))
 
@@ -518,9 +560,10 @@ cal_Unifrac_dist <- function(x, tree, weighted = FALSE, normalized = TRUE, paral
 }
 
 distMethods <- list(
-    vegdist    = c("manhattan", "euclidean", "canberra", "bray",
-                   "kulczynski", "jaccard", "gower", "altGower", "morisita", "horn",
-                   "mountford", "raup" , "binomial", "chao", "cao"),
+    vegdist    = c("manhattan", "euclidean", "canberra", "bray", "kulczynski", 
+                   "jaccard", "gower", "altGower", "morisita", "horn",
+                   "mountford", "raup" , "binomial", "chao", "cao", "mahalanobis", 
+                   "chisq", "chord"),
     betadiver  = c("w", "-1", "c", "wb", "r", "I", "e", "t", "me", "j",
                    "sor", "m", "-2", "co", "cc", "g", "-3", "l", "19", "hk", "rlb",
                    "sim", "gl", "z"),

@@ -5,7 +5,8 @@
                                     ...){
     otux <- read_qza(otuqza, parallel=parallel)
     otutab <- otux$otutab
-    refseq <- reftree <- taxatab <- otu.metada <- sampleda <- NULL
+    sampleda <- otux$sampleda
+    refseq <- reftree <- taxatab <- otu.metada <- NULL
     if (!is.null(taxaqza)){
         otu.taxa.meta <- read_qza(taxaqza, parallel=parallel)
         taxax <- otu.taxa.meta$taxatab
@@ -201,7 +202,7 @@
             }
             rownm <- rownames(otuda)
         }
-        taxatree <- convert_to_treedata2(x=data.frame(taxatab))
+        taxatree <- try_convert_taxa(data.frame(taxatab))
     }else{
         taxatree <- NULL
     }
@@ -312,20 +313,43 @@ read_qiime_otu <- function(otufilename){
 }
 
 .internal_parse_biom <- function(biomobj){
-    x <- data.frame(as(biomformat::biom_data(biomobj),"matrix"), check.names=FALSE)
-    taxflag <- all(unlist(lapply(biomobj$rows, function(i){length(i$metadata$taxonomy)}))==0)
-    if (taxflag){
+    x <- data.frame(as.matrix(biomformat::biom_data(biomobj)), check.names=FALSE)
+    taxflag <- unlist(lapply(biomobj$rows, function(i){length(i$metadata$taxonomy)}))
+    sampleda <- lapply(biomobj$columns, function(i)c(Sample=i$id, i$metadata)) %>% 
+                dplyr::bind_rows() %>% 
+                tibble::column_to_rownames(var=colnames(.)[1])
+    if (ncol(sampleda)==1){
+        sampleda <- NULL
+    }
+    if (all(taxflag==0)){
         taxatab <- NULL
+    }else if(all(taxflag == 1)){
+        taxatab <- lapply(biomobj$rows, function(i)i$metadata$taxonomy) %>%
+                   gsub(";\\s+", "@@",.) %>%
+                   unlist() %>%
+                   data.frame() %>%
+                   split_str_to_list(sep="@@") %>%
+                   apply(., 2, function(x)gsub("\\s+$", "", gsub("^\\s+", "", x))) %>%
+                   data.frame() %>%
+                   magrittr::set_colnames(taxaclass[seq_len(ncol(.))]) %>%
+                   magrittr::set_rownames(rownames(x)) %>%
+                   fillNAtax()
     }else{
-        taxatab <- lapply(biomobj$rows, function(i)paste0(i$metadata$taxonomy, collapse=";")) %>%
+        taxatab <- lapply(biomobj$rows, function(i)paste0(i$metadata$taxonomy, collapse="@@")) %>%
             unlist() %>%
             data.frame() %>%
-            split_str_to_list(sep=";") %>%
+            split_str_to_list(sep="@@") %>%
+            dplyr::select(which(lapply(., 
+                         function(i)!sum(grepl("[-]?[0-9]+[.]?[0-9]*|[-]?[0-9]+[L]?|[-]?[0-9]+[.]?[0-9]*[eE][0-9]+", i))> 0.5*nrow(.)) %>% 
+                         unlist())) %>%
+            dplyr::select(which(lapply(., function(i)!all(nchar(i)>60)) %>% unlist())) %>%
+            apply(., 2, function(x)gsub("\\s+$", "", gsub("^\\s+", "", x))) %>%
+            data.frame() %>%
             magrittr::set_colnames(taxaclass[seq_len(ncol(.))]) %>%
             magrittr::set_rownames(rownames(x)) %>%
             fillNAtax()
     }
-    return(list(otutab = x, taxatab=taxatab))
+    return(list(otutab = x, taxatab=taxatab, sampleda=sampleda))
 }
 
 taxaclass <- c("Kingdom", 

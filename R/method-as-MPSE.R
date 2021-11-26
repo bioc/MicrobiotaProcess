@@ -6,10 +6,6 @@
 ##' @return MPSE object
 ##' @export
 ##' @author Shuangbin Xu
-##' @examples
-##' data(test_otu_data)
-##' test_otu_data %>% as.MPSE -> mpse
-##' mpse
 as.MPSE <- function(.data, ...){
     if (inherits(.data, "MPSE")){
         return (.data)
@@ -29,6 +25,10 @@ as.MPSE <- function(.data, ...){
     }
     return (res)
 }
+
+#' @rdname as.MPSE
+#' @export
+as.mpse <- as.MPSE
 
 .as.MPSE.tbl_mpse <- function(.data, ...){
 
@@ -163,8 +163,7 @@ as.MPSE <- function(.data, ...){
         taxatree <- NULL
 
         if (ncol(taxada)!=0){
-            taxada %<>% fillNAtax()
-            taxatree <- convert_to_treedata2(x=taxada)
+            taxatree <- try_convert_taxa(taxada)
         }
 
         if (!is.null(.data@phy_tree)){
@@ -183,9 +182,6 @@ as.MPSE <- function(.data, ...){
                    refseq   = .data@refseq
                 )
 
-        #if (ncol(taxada)!=0){
-        #    SummarizedExperiment::rowData(mpse) <- taxada
-        #}
         methods::validObject(mpse)
         return(mpse)
 }
@@ -232,12 +228,13 @@ as.MPSE <- function(.data, ...){
     }
     
     if (!is.null(otu.tree)){
-        if (all(flag>5)){
-            otu.tree$tip.label %<>%
-              base::strsplit("\\|") %>%
-              lapply(., function(x)x[length(x)]) %>%
-              unlist()
-        }
+        #if (all(flag>5)){
+        #    otu.tree$tip.label %<>%
+        #      base::strsplit("\\|") %>%
+        #      lapply(., function(x)x[length(x)]) %>%
+        #      unlist()
+        #}
+        otu.tree$tip.label[!is.na(match(otu.tree$tip.label, .data@rowLinks$nodeLab))] <- rownames(.data@rowLinks)
         keepnms <- intersect(otu.tree$tip.label, rownames(.data))
         otu.tree <- ape::keep.tip(otu.tree, tip=keepnms)
         .data <- .data[rownames(.data) %in% keepnms, , drop=FALSE]
@@ -247,7 +244,7 @@ as.MPSE <- function(.data, ...){
     }
 
     if (!is.null(taxatab) && ncol(taxatab)>0){
-        taxa.tree <- convert_to_treedata2(x=data.frame(taxatab))
+        taxa.tree <- try_convert_taxa(taxada=data.frame(taxatab))
     }else{
         taxa.tree <- NULL
     }
@@ -276,17 +273,37 @@ as.MPSE <- function(.data, ...){
 .as.MPSE.biom <- function(.data, ...){
     x <- .internal_parse_biom(.data)
     if ( !is.null(x$taxatab)){
-        taxa.tree <- convert_to_treedata2(x$taxatab)
+        taxa.tree <- try_convert_taxa(x$taxatab)
     }else{
         taxa.tree <- NULL
     }
     
     mpse <- MPSE(assays = list(Abundance=x$otutab),
-                 taxatree = taxa.tree
+                 taxatree = taxa.tree,
+                 colData = x$sampleda
             )
 
     return(mpse)
 }
+
+
+as.tbl_mpse <- function(.data, .OTU, .Sample, .Abundance, ...){
+    UseMethod("as.tbl_mpse")
+}
+
+
+as.tbl_mpse.data.frame <- function(.data, .OTU, .Sample, .Abundance, ...){
+    .OTU <- rlang::enquo(.OTU)
+    .Sample <- rlang::enquo(.Sample)
+    .Abundance <- rlang::enquo(.Abundance)
+    .data %<>% dplyr::select(!!.OTU, !!.Sample, !!.Abundance) %>% 
+               dplyr::rename(OTU=!!.OTU, Sample=!!.Sample, Abundance=!!.Abundance)
+    attr(.data, "assaysvar") <- "Abundance"
+    attr(.data, "samplevar") <- "Sample"
+    .data %<>% add_class(new="tbl_mpse")
+    return(.data)
+}
+
 
 .internal_check_taxonomy <- function(x, flag){
     #flag <- rownames(x) %>% strsplit("\\|") %>% lapply(length) %>% unlist 
@@ -316,4 +333,23 @@ as.MPSE <- function(.data, ...){
     }
     newrowda <- x[, !seq_len(ncol(x)) %in% col.ind, drop=FALSE]
     return(list(taxatab=taxatab, newrowda=newrowda))
+}
+
+try_convert_taxa <- function(taxada){
+    trash <- try(silent = TRUE,
+                 expr = {
+                     taxa.tree <- taxada %>%
+                                  convert_to_treedata(include.rownames=TRUE)
+                 }
+             )
+    if (inherits(trash, "try-error")){
+        warning_wrap("The taxonomy class can not be converted to treedata class.
+                   Please check format of taxonomy class is corrected, for example, whether the order
+                   is from Kingdom, Phylum, Class, Order, Family, Genus, Species. Or you can convert it
+                   to treedata using 'convert_to_treedata' with 'include.rownames=TRUE'. Then using
+                   taxatree(mpse) <- your.taxa.tree to assign it.
+                  ")
+        taxa.tree <- NULL
+    }
+    return (taxa.tree)
 }

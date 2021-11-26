@@ -488,8 +488,8 @@ setGeneric("mp_extract_abundance", function(x, taxa.class="all", topn=NULL, ...)
               dplyr::rename(label="OTU") %>% 
               dplyr::mutate(nodeClass="OTU") 
         if (ncol(da)==1){
-            message("Please make sure the mp_cal_abundance(..., action='add') has been run.")
-            message("Or you can extract the assay via mp_extract_assays since the taxonomy is NULL")
+            message_wrap("Please make sure the mp_cal_abundance(..., action='add') has been run.
+                          Or you can extract the assay via mp_extract_assays since the taxonomy is NULL")
             return(NULL)
         }
         #return(da)
@@ -653,8 +653,9 @@ setGeneric("mp_extract_dist", function(x, distmethod, env.flag=FALSE, .group=NUL
                 suppressWarnings() %>%
                 rename(x="Sample", y=distname, r=distmethod) %>%
                 corrr::retract() %>%
-                tibble::column_to_rownames(var=colnames(.)[1])
-        distobj <- distobj[colnames(distobj), ] 
+                tibble::column_to_rownames(var=colnames(.)[1]) %>%
+                magrittr::extract(,rownames(.))
+        #distobj <- distobj[colnames(distobj), ] 
         distobj[lower.tri(distobj)] <- t(distobj)[lower.tri(t(distobj))]
         distobj %<>% stats::as.dist() %>%
                      add_attr(distmethod, "method")
@@ -744,7 +745,7 @@ setMethod("otutree", signature(x="MPSE"),function(x,...){
 
 #' @rdname MPSE-accessors 
 #' @param x MPSE object
-#' @param value treedata object or NULL
+#' @param value treedata class, phylo class or NULL
 #' @export
 setGeneric("otutree<-", function(x, ..., value)standardGeneric("otutree<-"))
 
@@ -753,6 +754,15 @@ setGeneric("otutree<-", function(x, ..., value)standardGeneric("otutree<-"))
 #' @export
 setReplaceMethod("otutree", signature(x="MPSE", value="treedata"), function(x, ..., value){
     x@otutree <- .internal_drop.tip(tree=value, newnm=rownames(x)) 
+    methods::validObject(x)
+    return(x)
+})
+
+#' @rdname MPSE-accessors
+#' @aliases otutree<-,MPSE
+#' @export
+setReplaceMethod("otutree", signature(x="MPSE", value="phylo"), function(x, ..., value){
+    x@otutree <- .internal_drop.tip(tree=value, newnm=rownames(x)) %>% treeio::as.treedata()
     methods::validObject(x)
     return(x)
 })
@@ -829,12 +839,12 @@ setReplaceMethod("taxatree", signature(x="MPSE", value="NULL"), function(x, ...,
 #' @rdname MPSE-accessors
 #' @param x MPSE object
 #' @export
-setGeneric("refseq", function(x, ...)standardGeneric("refseq"))
+setGeneric("refsequence", function(x, ...)standardGeneric("refsequence"))
 
 #' @rdname MPSE-accessors
-#' @aliases refseq,MPSE
+#' @aliases refsequence,MPSE
 #' @export
-setMethod("refseq", signature(x="MPSE"), function(x, ...){
+setMethod("refsequence", signature(x="MPSE"), function(x, ...){
     refseq <- x@refseq
     if (is.null(refseq)){
         message("The representative sequence is empty")
@@ -846,21 +856,21 @@ setMethod("refseq", signature(x="MPSE"), function(x, ...){
 #' @param x MPSE object
 #' @param value XStringSet object or NULL
 #' @export
-setGeneric("refseq<-", function(x, ..., value)standardGeneric("refseq<-"))
+setGeneric("refsequence<-", function(x, ..., value)standardGeneric("refsequence<-"))
 
 #' @rdname MPSE-accessors
-#' @aliases refseq<-,MPSE
+#' @aliases refsequence<-,MPSE
 #' @export
-setReplaceMethod("refseq", signature(x="MPSE", value="XStringSet"), function(x, ..., value){
+setReplaceMethod("refsequence", signature(x="MPSE", value="XStringSet"), function(x, ..., value){
     x@refseq <- value[rownames(x)]
     methods::validObject(x)
     return(x)
 })
 
 #' @rdname MPSE-accessors
-#' @aliases refseq<-,MPSE
+#' @aliases refsequence<-,MPSE
 #' @export
-setReplaceMethod("refseq", signature(x="MPSE", value="NULL"), function(x, ..., value){
+setReplaceMethod("refsequence", signature(x="MPSE", value="NULL"), function(x, ..., value){
     x@refseq <- NULL
     methods::validObject(x)
     return(x)
@@ -919,15 +929,10 @@ setReplaceMethod("rownames", signature(x="MPSE"), function(x, value){
     }
 
     if (!is.null(value) && !is.null(oldnm)){
-        old2new <- x %>%
-                   avoid_conflict_names() %>%
-                   tibble::as_tibble(rownames="OTU") %>%
-                   dplyr::left_join(
-                     data.frame(new=value, oldrowname=oldnm), 
-                     by=c("OTU"="new"), 
-                     suffix=c("", ".y")
-                   ) %>% 
-                   tibble::column_to_rownames(var="OTU")
+        old2new <- data.frame(.NEW=value, .OLDROWNAMES=oldnm) 
+        old2new %<>% dplyr::left_join(x %>% mp_extract_feature(), by=c(.OLDROWNAMES="OTU")) %>%
+                   tibble::column_to_rownames(var=".NEW")
+        
         SummarizedExperiment::rowData(nx) <- old2new
     }
     methods::validObject(nx)
@@ -949,7 +954,11 @@ rename_tiplab <- function(treedata, oldname, newname){
         return (NULL)
     }
     if (is.null(rmotus)){
-        rmotus <- setdiff(tree@phylo$tip.label, newnm)
+        if (inherits(tree, "treedata")){
+            rmotus <- setdiff(tree@phylo$tip.label, newnm)
+        }else if (inherits(tree, "phylo")){
+            rmotus <- setdiff(tree$tip.label, newnm)
+        }
     }
     if (length(rmotus) > 0 && length(rmotus) != treeio::Ntip(tree)){
         otutree <- treeio::drop.tip(tree, tip=rmotus, collapse.singles=collapse.singles)

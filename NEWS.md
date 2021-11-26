@@ -1,3 +1,32 @@
+# MicrobiotaProcess 1.6.2
+
++ update 'mp_plot_abundance' (2021-11-24, Wed)
+  - support `heatmap` by setting `geom`.
+  - `.group` supports multiple characters
+    and `.sec.group` will be removed in 
+    the next version.
++ update `mp_plot_diff_res` (2021-11-23, Tue)
+  - support `otutree` and `taxatree` class by setting `tree.type`.
+  - support multiple layout types of tree by setting `layout`.
+  - support adjusting the gap between panel and width of panel by setting
+    `offset.abun`, `pwidth.abun`, `offset.effsize`, `pwidth.effsize`
+  - support whether display the relative abundance of `group` 
+    instead of `sample` by setting `group.abun=TRUE` or 
+    sample number > 50
++ add `mp_plot_diff_res` to visualize the result of mp_diff_analysis. (2021-11-22, Mon)
++ speed up the `mp_cal_abundance`, `mp_cal_venn` and `mp_cal_upset` with `dtplyr`. (2021-11-18, Thu)
++ update the guide of x axis of `ggside` in `mp_plot_ord`. (2021-11-15, Mon)
++ update `mp_plot_abundance` to visualize the abundance of taxonomy from high 
+  (bottom) to low (top). (2021-11-15, Mon)
++ support multiple annotation rows or cols of `heatmap` of mp_plot_dist with 
+  `.group=c(group1, group2)`, and add `set_scale_theme` to adjust the `scale` 
+  or `theme` of subplot of `heatmap`. (2021-11-10, Wed)
++ fix the issue when the taxonomy info is removed with `select`. (2021-11-09, Tue)
++ update `print` for `MPSE` class. (2021-11-09, Tue)
++ update `otutree<-` for support `phylo` class. (2021-11-09, Tue)
++ speed up the integration of `mp_cal_dist` result with `action="add"`. (2021-11-09, Tue)
++ update `as.MPSE` for `biom` class to support parsing the metadata of sample. (2021-11-09, Tue)
+
 # MicrobiotaProcess 1.6.1
 
 + fix the issue when using `filter` only return a `assays` contained one feature (nrow=1). (2021-11-05, Fri)
