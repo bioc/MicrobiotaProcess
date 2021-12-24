@@ -1,3 +1,13 @@
+# MicrobiotaProcess 1.6.3
+
++ update `tax_table` without required `phyloseq`. (2021-12-20, Mon)
++ update `mp_diff_analysis` to support the factor type group (`.group` specified). (2021-12-20, Mon)
++ update `taxatree<-` and `otutree<-` which will extract the intersection between the 
+  tip labels of input treedata and the rownames of `MPSE`. (2021-12-14, Tue)
++ add `taxonomy<-` for `MPSE` to assign the taxonomy information, which will be
+  converted to `taxatree` automatically. (2021-12-14, Tue) 
++ update `mp_import_metaphlan` to better parse the output of `MetaPhlAn2`. (2021-11-30, Tue)
+
 # MicrobiotaProcess 1.6.2
 
 + update 'mp_plot_abundance' (2021-11-24, Wed)

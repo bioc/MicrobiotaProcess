@@ -28,7 +28,9 @@
 #' 'median' and 'mcquitty'.
 #' @param .sec.group the column name of second group to be plotted with nested facet,
 #' default is NULL, this argument will be deprecated in the next version.
-#' @param ... additional parameters, meaningless now.
+#' @param ... additional parameters, when the geom = "bar", it can specify the parameters of 
+#' 'geom_stratum' of 'ggalluvial', when the geom = "heatmap", it can specify the parameter of
+#' 'geom_tile' of 'ggplot2'.
 #' @author Shuangbin Xu
 #' @export
 #' @examples
@@ -113,7 +115,7 @@ setGeneric("mp_plot_abundance",
     .sec.group <- rlang::enquo(.sec.group)
     taxa.class <- rlang::enquo(taxa.class)
     geom %<>% match.arg(c("bar", "heatmap"))
-    if (geom=="bar"){
+    if (geom=="heatmap"){
         plot.group = FALSE
     }
 
@@ -192,12 +194,13 @@ setGeneric("mp_plot_abundance",
                         fill = rlang::as_name(taxa.class))
               ) +
               ggalluvial::geom_flow(stat="alluvium", lode.guidance = "frontback", color = "darkgray") +
-              ggalluvial::geom_stratum(stat="alluvium") +
+              ggalluvial::geom_stratum(stat="alluvium", ...) +
               ggplot2::labs(x=NULL, y=ylabs) +
               scale_fill_manual(
                   values = rev(get_cols(tbl %>% pull(!!taxa.class) %>% unique() %>% length())),
                   guide = guide_legend(reverse=TRUE)
-              )
+              ) + 
+              scale_y_continuous(expand = c(0, 0, 0, 0.5))
          if (!plot.group){
              if (!rlang::quo_is_null(.group)){
                  gp <- quo.vect_to_str.vect(.group)
@@ -234,7 +237,8 @@ setGeneric("mp_plot_abundance",
                      )
                ) +
                ggplot2::geom_tile(
-                   data = td_filter(!!rlang::sym(abundance.nm)!=0)
+                   data = td_filter(!!rlang::sym(abundance.nm)!=0),
+                   ...
                ) +
                theme(axis.text.x=element_text(angle=-45, hjust=0), 
                      panel.background=element_blank(), 
@@ -293,8 +297,8 @@ setGeneric("mp_plot_abundance",
              }
              indexname <- c(indexname, gp)
          }
-         p2 <- ggtree(feature.hclust, branch.length = "none", size = 1)
-         p3 <- ggtree(sample.hclust, branch.length = "none", size = 1, layout = "dendrogram")
+         p2 <- ggtree(feature.hclust, branch.length = "none", size = 0.8)
+         p3 <- ggtree(sample.hclust, branch.length = "none", size = 0.8, layout = "dendrogram")
          p %<>% insert_left(p2, width = 0.1)
          if (!rlang::quo_is_null(.group)){
              p %<>% insert_top(p3, height = 0.1 + 0.01 * length(gp))
@@ -458,7 +462,8 @@ setMethod("mp_plot_alpha", signature(.data="grouped_df_mpse"), .internal_plot_al
 #' @param .data MPSE object or tbl_mpse object
 #' @param .group the column names of group to be visualized
 #' @param .venn the column names of result after run \code{mp_cal_venn}.
-#' @param ... additional parameters, meaningless now.
+#' @param ... additional parameters, such as 'size', 'label_size', 'edge_size' etc, 
+#' see also 'ggVennDiagram'.
 #' @author Shuangbin Xu
 #' @examples
 #' \dontrun{
@@ -483,7 +488,7 @@ setGeneric("mp_plot_venn", function(.data, .group, .venn=NULL, ...) standardGene
         dplyr::select(!!.group, !!.venn) %>% 
         dplyr::distinct() %>%
         pull(var=!!.venn, name=!!.group) %>%
-        ggVennDiagram::ggVennDiagram()
+        ggVennDiagram::ggVennDiagram(., ...)
     return(p)
 }
 
@@ -507,7 +512,7 @@ setMethod("mp_plot_venn", signature(.data="grouped_df_mpse"), .internal_plot_ven
 #' @param .data MPSE obejct or tbl_mpse object
 #' @param .group the column name of group
 #' @param .upset the column name of result after run \code{mp_cal_upset}
-#' @param ... additional parameters, meaningless now.
+#' @param ... additional parameters, see also 'scale_x_upset' of 'ggupset'.
 #' @export
 #' @author Shuangbin Xu
 #' @examples
@@ -536,7 +541,7 @@ setGeneric("mp_plot_upset", function(.data, .group, .upset=NULL, ...) standardGe
          dplyr::filter(vapply(!!.upset, length, numeric(1))>0) %>%
          ggplot(mapping=aes(x=!!.upset)) +
          geom_bar() +
-         ggupset::scale_x_upset() +
+         ggupset::scale_x_upset(...) +
          ggupset::theme_combmatrix(combmatrix.label.extra_spacing=30) +
          ggplot2::labs(y=rlang::as_name(.group))
 
@@ -642,7 +647,7 @@ setGeneric("mp_plot_rarecurve", function(.data,
 
     p <- ggplot2::ggplot(data=tbl, mapping=maps) 
     smoothlayer <- do.call(geom_smooth, c(method="lm", formula=y~log(x), alpha=alpha, params))
-    p <- p + smoothlayer + ggplot2::scale_y_continuous(limits=c(0,NA), expand=c(0, 0.1), oob=scales::squish)
+    p <- p + smoothlayer + ggplot2::scale_y_continuous(expand=c(0, 0, 0, 0.8), oob=scales::squish)
 
     if (!rlang::quo_is_null(.group)){
          p <- p + ggplot2::stat_summary(fun.data = 'mean_se', geom = "ribbon", alpha = alpha)
@@ -837,7 +842,7 @@ setGeneric("mp_plot_dist",
           }
           indexname <- c(indexname, rep(gp, each = 2))
       }
-      p2 <- ggtree(sample.hclust, branch.length="none", size=1)
+      p2 <- ggtree(sample.hclust, branch.length="none", size=.8)
       p <- p %>% insert_left(p2, width=0.12)
       p <- p %>% insert_top(p2 + ggtree::layout_dendrogram(), height=0.12)
       p$index <- c(indexname, paste0("tree", seq_len(2)))
@@ -1058,10 +1063,14 @@ setGeneric("mp_plot_ord", function(
     p <- ggplot(data=tbl, mapping=maps)
     ggstar <- "ggstar"
     require(ggstar, character.only=TRUE) %>% suppressMessages()
+    if ("fill" %in% names(maps)){
+        params <- c(params, color = "gray32")
+    }
     point.layer <- do.call(geom_star, params)
-    p <- p + point.layer +
+    p <- p +
          ggplot2::geom_vline(xintercept=0, color="grey20", linetype=2) +
          ggplot2::geom_hline(yintercept=0, color="grey20", linetype=2) +
+         point.layer +
          theme_bw() +
          theme(panel.grid=element_blank())
 
