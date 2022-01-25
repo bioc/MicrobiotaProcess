@@ -1,3 +1,14 @@
+# MicrobiotaProcess 1.6.4
+
++ fix the [issue](https://github.com/YuLab-SMU/MicrobiotaProcess/issues/40), that `kingdom` level of taxonomy 
+  information contains `k__` or `K__`, which is unknown annotation in `kingdom`. (2021-01-14, Fri)
++ add `mp_extract_taxatree` and `mp_extract_otutree` (alias of `mp_extract_tree`). (2022-01-14, Fri)
++ add the message for the not integers in `mp_cal_alpha`. (2021-12-31, Fri) 
++ remove the features which variance of their abundance is zero before identify different taxa. (2021-12-28, Tue)
++ add `bar` option in `mp_plot_abundance`, default is `flowbar`, the other options are `bar` and `heatmap`
++ use corrected relative eigenvalues when the eigenvalues has negative values. (2021-12-27, Mon)
++ add new distmethod from `hopach`. (2021-12-27, Mon)
+
 # MicrobiotaProcess 1.6.3
 
 + update `tax_table` without required `phyloseq`. (2021-12-20, Mon)
