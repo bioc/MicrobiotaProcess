@@ -1,3 +1,9 @@
+# MicrobiotaProcess 1.6.5
+
++ fix the `width` of `mp_plot_abundance` with `geom="flowbar". (2022-02-01, Tue)`
+ - related [issue](https://github.com/YuLab-SMU/MicrobiotaProcess/issues/41)
++ fix the bug about the constant variables within groups in `lda` of `MASS` (2022-01-27, Thu) 
+
 # MicrobiotaProcess 1.6.4
 
 + fix the [issue](https://github.com/YuLab-SMU/MicrobiotaProcess/issues/40), that `kingdom` level of taxonomy 
