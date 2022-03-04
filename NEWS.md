@@ -1,7 +1,13 @@
+# MicrobiotaProcess 1.6.6
+
++ add `mp_select_as_tip` and fix the bug of `mp_diff_analysis` with specific `tip.level` (not `OTU`) argument. (2022-03-02, Mon)
++ fix the `replace_na` bug of new `tidyr`. (2022-03-04, Fri)
++ supporting multiple group names and supporting numeric type for `.group` of `mp_plot_alpha`. (2022-02-15, Tue)
++ supporting multiple group names for `.group` of `mp_plot_abundance` when `plot.group=TRUE`. (2022-02-14, Mon)
+
 # MicrobiotaProcess 1.6.5
 
 + fix the `width` of `mp_plot_abundance` with `geom="flowbar". (2022-02-01, Tue)`
- - related [issue](https://github.com/YuLab-SMU/MicrobiotaProcess/issues/41)
 + fix the bug about the constant variables within groups in `lda` of `MASS` (2022-01-27, Thu) 
 
 # MicrobiotaProcess 1.6.4

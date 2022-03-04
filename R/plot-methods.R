@@ -32,6 +32,8 @@
 #' 'geom_stratum' of 'ggalluvial', when the geom = 'bar', it can specify the parameters of 
 #' 'geom_bar' of 'ggplot2', when the geom = "heatmap", it can specify the parameter of
 #' 'geom_tile' of 'ggplot2'.
+#' @param rmun logical whether to remove the unknown taxa, such as "g__un_xxx",
+#' default is FALSE (the unknown taxa class will be considered as 'Others').
 #' @author Shuangbin Xu
 #' @export
 #' @examples
@@ -90,6 +92,7 @@ setGeneric("mp_plot_abundance",
               sample.dist = "bray",
               sample.hclust = "average",
               .sec.group = NULL,
+              rmun = FALSE,
               ...
            )
            standardGeneric("mp_plot_abundance")
@@ -109,6 +112,7 @@ setGeneric("mp_plot_abundance",
                                 sample.dist = "bray",
                                 sample.hclust = "average",
                                 .sec.group = NULL,
+                                rmun = FALSE,
                                 ...
                                 ){
     .abundance <- rlang::enquo(.abundance)
@@ -148,7 +152,7 @@ setGeneric("mp_plot_abundance",
 
      if (!rlang::quo_is_null(.group) && plot.group){
          gp <- quo.vect_to_str.vect(.group)
-         prefixBy <- paste0("By", gp[1])
+         prefixBy <- paste0("By", paste0(gp, collapse="And"))
          axis.x <- rlang::as_name(gp[1])
      }else{
          if (force){
@@ -167,14 +171,14 @@ setGeneric("mp_plot_abundance",
 
      if (!any(grepl(paste0("^", AbundBy), .data %>% mp_extract_feature() %>% colnames()))){
          if (!rlang::quo_is_null(.group) && plot.group){
-             .data %<>% mp_cal_abundance(.abundance=!!.abundance, .group=!!rlang::sym(gp[1]), force=force, relative=relative)
+             .data %<>% mp_cal_abundance(.abundance=!!.abundance, .group=!!.group, force=force, relative=relative)
          }else{
              .data %<>% mp_cal_abundance(.abundance=!!.abundance, force=force, relative=relative)
          }
      }
 
      tbl <- .data %>% 
-            mp_extract_abundance(taxa.class=!!taxa.class, topn = topn) %>%
+            mp_extract_abundance(taxa.class=!!taxa.class, topn = topn, rmun = rmun) %>%
             tidyr::unnest(cols=AbundBy) %>% 
             dplyr::mutate(label=forcats::fct_rev(.data$label)) %>%
             dplyr::rename(!!taxa.class:="label") %>% 
@@ -214,27 +218,30 @@ setGeneric("mp_plot_abundance",
                   guide = guide_legend(reverse=TRUE)
               ) + 
               scale_y_continuous(expand = c(0, 0, 0, 0.5))
-         if (!plot.group){
-             if (!rlang::quo_is_null(.group)){
-                 gp <- quo.vect_to_str.vect(.group)
-                 if (!rlang::quo_is_null(.sec.group)){
-                     warning_wrap("The .sec.group will be depcrecated, please use .group argument, which
-                                  supports multiple groups.")
-                     gp2 <- quo.vect_to_str.vect(.sec.group)
+          
+         if (!rlang::quo_is_null(.group)){
+             gp <- quo.vect_to_str.vect(.group)
+             if (!rlang::quo_is_null(.sec.group)){
+                 warning_wrap("The .sec.group will be depcrecated, please use .group argument, which
+                              supports multiple groups.")
+                 gp2 <- quo.vect_to_str.vect(.sec.group)
+                 if (!gp2 %in% gp){
                      gp <- append(gp, gp2, after=1)
                  }
-                 gp %<>% unique()
-                 if (length(gp)==1){
-                     p <- p + 
-                         facet_grid(cols=ggplot2::vars(!!rlang::sym(gp[1])), 
-                                    scales="free_x", space="free")
-                 }else{
-                     p <- p + 
-                          ggh4x::facet_nested(cols=ggplot2::vars(!!rlang::sym(gp[1]), !!rlang::sym(gp[2])), 
-                                              scales="free_x", space="free")
-                 }
              }
+             if (plot.group && length(gp)>1 ){
+                 gpformula <- as.formula(paste0(". ~ ", paste0(gp[-1], collapse="+")))
+             }else if (!plot.group){
+                 gpformula <- as.formula(paste0(". ~ ", paste0(gp, collapse="+")))
+             }else{
+                 gpformula <- NULL
+             }
+         }else{
+             gpformula <- NULL
          }
+         if (!is.null(gpformula)){
+             p <- p + ggh4x::facet_nested(gpformula, scales="free_x", space="free")
+         }   
          
          p <- p + theme_taxbar()
 
@@ -412,18 +419,20 @@ setGeneric("mp_plot_alpha",
     tbl$Measure <- factor(tbl$Measure, levels=newlevels)
 
     if (!is.null(.group)){
+        gp <- quo.vect_to_str.vect(.group)
         if (is.null(comparisons)){
            comparisons <- tbl %>% 
-                          pull(!!.group) %>% 
+                          pull(!!rlang::sym(gp[1])) %>% 
                           unique() %>% 
                           utils::combn(2) %>% 
                           apply(2, list) %>% 
                           unlist(recursive = FALSE)
         }
-        mapping <- aes_string(x = rlang::as_name(.group), 
+        mapping <- aes_string(x = gp[1], 
                               y = "Alpha", 
-                              fill = rlang::as_name(.group))
+                              fill = gp[1])
     }else{
+        gp <- NULL
         mapping <- aes_string(x = "Sample", 
                               y = "Alpha"
                    )
@@ -431,26 +440,53 @@ setGeneric("mp_plot_alpha",
 
     p <- ggplot(data=tbl, mapping = mapping)
 
-    if (!is.null(.group)){
-        p <- p +
-           gghalves::geom_half_violin(color=NA, side="l", trim=FALSE) +
-           gghalves::geom_half_point(side="r", shape=21, alpha=0.8) +
-           ggplot2::geom_boxplot(aes_string(color=rlang::as_name(.group)),
-                                 fill = NA,
-                                 position=ggplot2::position_nudge(x=.22),
-                                 size = 0.6,
-                                 width=0.2) +
-           ggsignif::geom_signif(comparisons=comparisons, test=test, step_increase=step_increase, ...) +
-           ggplot2::facet_wrap(facets=ggplot2::vars(!!rlang::sym("Measure")), scales="free_y", nrow=1) +
-           ggplot2::scale_fill_manual(values=get_cols(tbl %>% pull(!!.group) %>% unique() %>% length())) +
-           ggplot2::scale_color_manual(values=get_cols(tbl %>% pull(!!.group) %>% unique() %>% length()))
+    if (!is.null(gp)){
+        if (is.numeric(tbl[[gp[1]]])){
+           if (length(gp) > 1 ){
+               mapping <- modifyList(mapping, aes_string(color=gp[2]))
+               gp <- gp[-c(1, 2)]
+           }else{
+               mapping <- modifyList(mapping, aes_string(fill=NULL))
+               gp <- gp[-1]
+           }
+           p <- ggplot(data = tbl, mapping = mapping)
+           smoothparam <- modifyList(list(method="lm", se=TRUE), list(...))
+           p <- p + 
+                geom_point()
+           p <- p +
+                do.call(ggplot2::geom_smooth, smoothparam) 
+        }else{
+           p <- p +
+              gghalves::geom_half_violin(color=NA, side="l", trim=FALSE) +
+              gghalves::geom_half_point(side="r", shape=21, alpha=0.8) +
+              ggplot2::geom_boxplot(aes_string(color=gp[1]),
+                                    fill = NA,
+                                    position=ggplot2::position_nudge(x=.22),
+                                    size = 0.6,
+                                    width=0.2) +
+              ggsignif::geom_signif(comparisons=comparisons, test=test, step_increase=step_increase, ...) +
+              ggplot2::scale_fill_manual(values=get_cols(tbl %>% pull(!!rlang::sym(gp[1])) %>% unique() %>% length())) +
+              ggplot2::scale_color_manual(values=get_cols(tbl %>% pull(!!rlang::sym(gp[1])) %>% unique() %>% length()))
+           gp <- gp[-1]
+        }
+        if (length(gp) > 0){
+           gpformula <- as.formula(paste0("Measure ~ ", paste0(gp, collapse="+")))
+           p <- p + ggh4x::facet_nested(gpformula, scales="free", space="free_x")
+        }else{
+           p <- p + ggplot2::facet_wrap(facets=ggplot2::vars(!!rlang::sym("Measure")), scales="free_y", nrow=1)
+        }
     }else{
         p <- p +
              ggplot2::geom_col() +
              ggplot2::facet_wrap(facets=ggplot2::vars(!!rlang::sym("Measure")), scales="free_y")
     }
 
-    p <- p + labs(x=NULL, y="Alpha Index Value") + theme_taxbar(legend.position="right")
+    p <- p + 
+         labs(x=NULL, y="Alpha Index Value") + 
+         theme_taxbar(
+           legend.position="right", 
+           strip.text.y = ggplot2::element_text(size = 12, face = "bold")
+         )
     return (p)
 }
 
