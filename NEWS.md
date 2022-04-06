@@ -1,7 +1,15 @@
 # MicrobiotaProcess 1.6.6
 
++ add `mp_cal_pd_metric` to calculate the related phylogenetic diversity metrics. (2022-04-02)
+  including `NRI`, `NTI`, `PD`, `PAE`, `HAED`, `EAED`, `IAC`.
++ add `mp_balance_clade` to calculate the balance score of internal nodes according to their tip nodes abundances. (2022-03-22)
++ add `extract_binary_offspring` to find the descendant tip/internal/all (with `type` parameter) nodes. (2022-03-17)
++ add `mp_aggregate_clade` and `mp_diff_clade` to calculate and test the abundance (differential signals) of 
+  internal node according to their tip nodes abundance. (2022-03-16)
 + add `mp_select_as_tip` and fix the bug of `mp_diff_analysis` with specific `tip.level` (not `OTU`) argument. (2022-03-02, Mon)
 + fix the `replace_na` bug of new `tidyr`. (2022-03-04, Fri)
++ update `mp_import_metaphlan` to better parse the output of `MetaPhlAn2`. (2022-03-11, Fri)
++ update the `mp_cal_abundance` to return the `tbl_df` contained numeric type sample metadata. (2022-03-11, Fri)
 + supporting multiple group names and supporting numeric type for `.group` of `mp_plot_alpha`. (2022-02-15, Tue)
 + supporting multiple group names for `.group` of `mp_plot_abundance` when `plot.group=TRUE`. (2022-02-14, Mon)
 

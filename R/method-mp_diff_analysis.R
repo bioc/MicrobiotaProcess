@@ -5,7 +5,7 @@
 #' @param .group the group name of the samples to be calculated.
 #' @param .sec.group the second group name of the samples to be calculated.
 #' @param action character, "add" joins the new information to the taxatree (if it exists) 
-#' and otutree (if it exists) or \code{rowData} and return MPSE object,"only" return a 
+#' or \code{rowData} and return MPSE object,"only" return a 
 #' non-redundant tibble with the result of different analysis. "get" return 'diffAnalysisClass' 
 #' object.
 #' @param tip.level character the taxa level to be as tip level
@@ -338,32 +338,31 @@ setGeneric("mp_diff_analysis", function(.data,
          res <- new("diffAnalysisClass", originalD=f_tb, sampleda=sampleda, taxda=taxda, result=result, kwres=first.res,
                    secondvars=second.test.sig.vars, mlres=ml.res, someparams=params)
          return(res)
-     }else if (action=="only"){
+     }
+     result <- .combine_others(result, first.res)
+     if (action=="only"){
          return(result)
      }else if (action=="add"){
          newgroup <- paste0("Sign_", rlang::as_name(.group))
          result %<>% dplyr::rename(label="f", !!newgroup:=!!.group)
          if (is.null(taxatree)){
-             otu_tb <- .data %>% 
-                       mp_extract_feature() 
-             #result %<>% dplyr::select(c("label",setdiff(colnames(result), colnames(otu_tb))))
-             otu_tb %<>% 
-                 dplyr::left_join(result %<>% dplyr::rename(OTU="label"), by="OTU", suffix=c("", ".y")) %>% 
-                 tibble::column_to_rownames(var="OTU") %>%
-                 S4Vectors::DataFrame(check.names=FALSE)
-             SummarizedExperiment::rowData(.data) <- otu_tb
+             if (!is.null(otutree(.data))){
+                 otu.tree <- .data %>% mp_extract_otutree() %>%
+                             treeio::full_join(result, by="label", suffix=c("", ".y"))
+                 otutree(.data) <- otu.tree
+             }else{             
+                 otu_tb <- .data %>% 
+                           mp_extract_feature() 
+                 #result %<>% dplyr::select(c("label",setdiff(colnames(result), colnames(otu_tb))))
+                 otu_tb %<>% 
+                     dplyr::left_join(result %<>% dplyr::rename(OTU="label"), by="OTU", suffix=c("", ".y")) %>% 
+                     tibble::column_to_rownames(var="OTU") %>%
+                     S4Vectors::DataFrame(check.names=FALSE)
+                 SummarizedExperiment::rowData(.data) <- otu_tb
+             }
          }else{
-             #result %<>% dplyr::select(setdiff(colnames(result), 
-             #                          c(colnames(taxatree@data), 
-             #                            colnames(taxatree@extraInfo)))
-             #                         )
              taxatree %<>% treeio::full_join(result, by="label", suffix=c("", ".y"))
              taxatree(.data) <- taxatree
-         }
-         if (!is.null(.data@otutree)){
-             otutree <- .data@otutree
-             otutree %<>% treeio::full_join(result, by="label", suffix=c("", ".y"))
-             otutree(.data) <- otutree
          }
          return(.data)
      }
@@ -576,6 +575,8 @@ setGeneric("mp_plot_diff_res",
                     )
          n.pwidth <- ncol(.data)
     }
+    ggstar <- "ggstar"
+    require(ggstar, character.only=TRUE) %>% suppressMessages()
     p2 <- suppressWarnings(
             p1 + 
             ggnewscale::new_scale_fill() +

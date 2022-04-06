@@ -351,7 +351,7 @@ setMethod("mp_plot_abundance", signature(.data="grouped_df_mpse"), .internal_plo
 #' @rdname mp_plot_alpha-methods
 #' @param .data MPSE or tbl_mpse object
 #' @param .group the column name of sample group information
-#' @param .alpha the column name of alpha index after run mp_cal_alpha or mp_cal_NRI_NTI.
+#' @param .alpha the column name of alpha index after run mp_cal_alpha or mp_cal_pd_metric.
 #' @param test the name of the statistical test, default is 'wilcox.test'
 #' @param comparisons A list of length-2 vectors. The entries in the vector are
 #' either the names of 2 values on the x-axis or the 2 integers that 
@@ -463,7 +463,9 @@ setGeneric("mp_plot_alpha",
                                     fill = NA,
                                     position=ggplot2::position_nudge(x=.22),
                                     size = 0.6,
-                                    width=0.2) +
+                                    width = 0.2,
+                                    outlier.shape = NA
+                                    ) +
               ggsignif::geom_signif(comparisons=comparisons, test=test, step_increase=step_increase, ...) +
               ggplot2::scale_fill_manual(values=get_cols(tbl %>% pull(!!rlang::sym(gp[1])) %>% unique() %>% length())) +
               ggplot2::scale_color_manual(values=get_cols(tbl %>% pull(!!rlang::sym(gp[1])) %>% unique() %>% length()))
