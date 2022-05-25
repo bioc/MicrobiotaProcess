@@ -1,4 +1,4 @@
-# MicrobiotaProcess 1.9.1
+# MicrobiotaProcess 1.8.1
 
 + fix the color of legend in `mp_plot_diff_cladogram`. (2022-05-25)
 + add `mp_plot_diff_cladogram` in `vignetters`. (2022-05-14)
