@@ -1,3 +1,10 @@
+# MicrobiotaProcess 1.8.2
+
++ fix a bug of `mp_plot_diff_boxplot` when `taxatree` slot is NULL. (2022-08-22, Mon)
++ fixed the local vignettes. (2022-07-06, Wed)
++ add `mp_import_biom` to build `MPSE` class from `biom-format` file. (2022-07-13, Wed)
++ add 'mp_plot_diff_boxplot' to replace `ggdiffbox`. (2022-07-29, Fri)
+
 # MicrobiotaProcess 1.8.1
 
 + fix the color of legend in `mp_plot_diff_cladogram`. (2022-05-25)
