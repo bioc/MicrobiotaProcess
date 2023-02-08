@@ -1,5 +1,11 @@
-# MicrobiotaProcess 1.10.2
+# MicrobiotaProcess 1.10.3
 
++ update `mp_plot_diff_res` and `mp_plot_diff_boxplot` to support visualize the `abundance` (not 
+  relative abundance). (2022-12-02, Fri)
++ fix the `tip.label` and `rownames` of `assays` when tree is provided in `mp_import_dada2` (2022-12-02, Fri)
++ add the message information when the differential features was filtered in the first and
+  second test in `mp_diff_analysis`. (2022-12-06, Tue)
++ fix the dynamic dots issue of `left_join`. (2022-12-15, Thu)
 + update `mp_plot_abundance` to be compatible with the latest ggplot2. (2022-11-08, Tue)
 + add `mp_plot_diff_manhattan` to visualize the different results with manhattan plot. (2022-11-21, Mon)
 

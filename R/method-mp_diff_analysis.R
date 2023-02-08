@@ -133,6 +133,7 @@ setGeneric("mp_diff_analysis", function(.data,
      standardGeneric("mp_diff_analysis")
 )
 
+#' @importFrom cli cli_inform make_ansi_style
 .internal_mp_diff_analysis <-  function(
               .data,
               .abundance,
@@ -265,10 +266,17 @@ setGeneric("mp_diff_analysis", function(.data,
      first.test.sig.vars <- first.res %>% 
                   dplyr::filter(!!as.symbol(filter.p) <= first.test.alpha & !is.na(!!as.symbol(filter.p))) %>% 
                   dplyr::pull(.data$f)
-
+     
+     msg1 <- function(x){
+                 paste0("There are not significantly discriminative features after internal ", x, " test !")
+             }
+     msg2 <- paste0("The result returned was original input object {.cls ", class(.data)[1], "}.")
+     msg3 <- "If you do not want to identify the differential features with such a conservative"
+     msg4 <- " condition, you can set {.arg filter.p=\"pvalue\"} or {.arg first.test.alpha = .05} or {.arg strict = FALSE}"
+     
      if (!length(first.test.sig.vars)>0){
-          message("There are not significantly discriminative features after internal first test !")
-          return(NULL)
+         cli::cli_inform(cli::make_ansi_style("orange")(c(msg1('first'), msg2, msg3, msg4)))
+         return(.data)
      }
 
      compareclass <- sampleda %>% 
@@ -304,9 +312,11 @@ setGeneric("mp_diff_analysis", function(.data,
                                  ...)
      }
 
-     if (length(second.test.sig.vars)==0){
-         message("There are not significantly discriminative features after internal second test!")
-         return(NULL)
+     if (!all(unlist(lapply(second.test.sig.vars,function(i)nrow(i) > 0)))){
+         cli::cli_inform(cli::make_ansi_style("red")(c(msg1('second'), 
+                                                       msg2, msg3, msg4, 
+                                                       " or {.var second.test.alpha=.05}")))
+         return(.data) 
      }
 
      leaveclasslevels <- unlist(lapply(names(second.test.sig.vars), 
@@ -596,10 +606,23 @@ setGeneric("mp_plot_diff_res",
     }
     abun.col <- abun.col[1]
     x.abun.col <- anno.tree %>% 
-                  dplyr::select(!!rlang::sym(abun.col)) %>% 
+                  dplyr::select(!!rlang::sym(abun.col)) %>%
                   tidyr::unnest(!!rlang::sym(abun.col)) %>%
                   colnames()
-    x.abun.col <- x.abun.col[grepl("^Rel", x.abun.col)]
+    if (any(grepl('BySample$',  abun.col))){
+        if (any(grepl('^Rel', x.abun.col))){
+            x.abun.col <- paste0('Rel', abun.col)
+        }else{
+            x.abun.col <- gsub('BySample$', '', abun.col)
+        }
+    }else{
+        if (any(grepl("^Rel", x.abun.col))){
+            x.abun.col <- paste0('Rel', abun.col)
+        }else{
+            x.abun.col <- abun.col
+        }
+    }
+    #x.abun.col <- x.abun.col[grepl("^Rel", x.abun.col)]
     gplot.pck <- "ggplot2"
     require(gplot.pck, character.only=TRUE) %>% suppressMessages()
     if (tree.type == "otutree"){
@@ -682,7 +705,7 @@ setGeneric("mp_plot_diff_res",
                grid.params = list(linetype=2)
             ) +  
             scale_size_continuous(
-               name="Relative Abundance (%)",
+               name= ifelse(grepl('^Rel', abun.col), "Relative Abundance (%)", gsub("By.*", "", abun.col)),
                range = c(.5, 3),
                guide = guide_legend(override.aes = list(fill="black"))
             )
@@ -1119,7 +1142,8 @@ setGeneric("mp_plot_diff_boxplot",
         tbl %<>% dplyr::filter(!grepl('__un_', .data$label))
     }
     nmda <- colnames(tbl)
-    tbl %<>% tidyr::unnest(nmda[grepl('BySample', nmda)][1])
+    nm.abun <- nmda[grepl('BySample', nmda)][1]
+    tbl %<>% tidyr::unnest(nm.abun)
     nmda <- colnames(tbl)
     if (rlang::quo_is_missing(.group)){
         if (any(grepl('^Sign_', nmda))){
@@ -1167,8 +1191,11 @@ setGeneric("mp_plot_diff_boxplot",
         xmintext <- NULL
         xmaxtext <- NULL
     }
-
-    abunda <- nmda[grepl('Rel.*BySample', nmda)]
+    if (any(grepl('Rel.*BySample', nmda))){
+        abunda <- nmda[grepl('Rel.*BySample', nmda)]
+    }else{
+        abunda <- gsub('BySample$', '', nm.abun) 
+    }
     if (group.abun){
         mapping1 <- aes(x = !!rlang::sym(abunda), 
                         y = !!rlang::sym("label"),
@@ -1489,7 +1516,13 @@ setGeneric('mp_plot_diff_manhattan',
               rect.layer +
               scale_fill_manual(values=rep(c('white', 'grey50'), ceiling(nrow(taxa.da)/2)), guide='none')
      }
-     p <- p + geom_hline(yintercept=-log10(0.05), color='red', linewidth=.2, linetype=2)
+     if (utils::packageVersion("ggplot2") >= '3.4.0'){
+         p <- p + geom_hline(yintercept=-log10(0.05), color='red', linewidth = .2, linetype=2)
+         line.theme <- element_line(linewidth = .2)
+     }else{
+         p <- p + geom_hline(yintercept=-log10(0.05), color='red', size = .2, linetype=2)
+         line.theme <- element_line(size = .2)
+     }
      p <- p + point.layer
      text.args <- list(min.segment.length = 0,
                        max.overlaps = 100,
@@ -1518,7 +1551,7 @@ setGeneric('mp_plot_diff_manhattan',
             panel.grid = element_blank(),
             panel.spacing.x = unit(.15, 'cm'),
             panel.background = element_blank(),
-            axis.line = element_line(linewidth=.2),
+            axis.line = line.theme
           ) +
           coord_cartesian(clip = 'off')
      return(p)
