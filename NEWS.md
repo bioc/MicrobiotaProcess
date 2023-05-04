@@ -1,4 +1,4 @@
-# MicrobiotaProcess 1.13.1
+# MicrobiotaProcess 1.12.1
 
 + fix a bug for the abundance calculation with `force = TRUE` and `relative = FALSE`. (2023-04-28, Fri)
 
