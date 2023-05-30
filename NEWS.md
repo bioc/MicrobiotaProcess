@@ -1,5 +1,8 @@
-# MicrobiotaProcess 1.12.1
+# MicrobiotaProcess 1.12.2
 
++ fix a bug of mp_plot_diff_res when ggnewscale updated to 0.4.9. (2023-05-30, Tue)
++ add fortify method for MPSE object. (2023-05-18, Thu)
++ add `mp_import_humann_regroup` function to parsing the output of `humann_regroup_table`. (2023-05-15, Mon)
 + fix a bug for the abundance calculation with `force = TRUE` and `relative = FALSE`. (2023-04-28, Fri)
 
 # MicrobiotaProcess 1.11.5
