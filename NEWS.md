@@ -1,3 +1,8 @@
+# MicrobiotaProcess 1.12.3
+
++ update `mp_plot_ord` to display the result of `mp_adonis` with `show.adonis = TRUE`. (2023-06-21, Wed)
++ using `theme_blinds` of `ggfun`. (2023-06-20, Tue)
+
 # MicrobiotaProcess 1.12.2
 
 + fix a bug of mp_plot_diff_res when ggnewscale updated to 0.4.9. (2023-05-30, Tue)

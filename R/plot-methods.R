@@ -1009,6 +1009,8 @@ setMethod("mp_plot_dist", signature(.data="grouped_df_mpse"), .internal_plot_dis
 #' @param starstroke numeric the width of edge of points, default is 0.5.
 #' @param show.side logical whether display the side boxplot with the specified \code{.dim} 
 #' dimensions, default is TRUE.
+#' @param show.adonis logical whether display the result of \code{mp_adonis} with \code{action='all'},
+#' default is FALSE.
 #' @param ellipse logical, whether to plot ellipses, default is FALSE. (.group or .color variables 
 #' according to the 'geom', the default geom is path, so .color can be mapped to the corresponding 
 #' variable).
@@ -1054,6 +1056,7 @@ setGeneric("mp_plot_ord", function(
     .color = "black",
     starstroke = 0.5,
     show.side = TRUE,
+    show.adonis = FALSE,
     ellipse = FALSE,
     show.sample = FALSE,
     show.envfit = FALSE,
@@ -1075,6 +1078,7 @@ setGeneric("mp_plot_ord", function(
     .color = "black",
     starstroke = 0.5,
     show.side = TRUE,
+    show.adonis = FALSE,
     ellipse = FALSE,
     show.sample = FALSE,
     show.envfit = FALSE,
@@ -1356,7 +1360,55 @@ setGeneric("mp_plot_ord", function(
        }
     }
 
+    if (show.adonis){
+        p <- .add_adonis_layer(plot = p, data=.data, show.side = show.side)
+    }
+
     return(p)
+}
+
+.add_adonis_layer <- function(plot, data, show.side){
+   adonis.res <- data %>% mp_extract_internal_attr(name='adonis') 
+   if (is.null(adonis.res)){
+       cli::cli_inform(c(
+         "The {.cls {as.character(class(data))}} does not contain the result of {.arg adonis}. Please make sure ",
+         "the {.fn mp_adonis} had been run with {.arg action = 'add'}."
+         )
+       ) 
+       return(plot)
+   }
+   
+   if (show.side){
+       vjust <- 'outward'
+       hjust <- 'outward'
+   }else{
+       vjust <- hjust <- 'inward'
+   }
+   
+   label.tmp <- deparse(
+                  bquote(
+                    atop(
+                     italic("Adonis")~":",
+                    atop(
+                     italic("R")^2~"="~.(round(adonis.res$R2[[1]], 4)),
+                     italic("p")~"  ="~.(round(adonis.res$`Pr(>F)`[[1]], 4))
+                    )
+                  )
+               ),
+               width.cutoff = 200
+             )   
+
+   df.text <- data.frame(name = label.tmp, x = 1, y =1)
+   plot <- plot +
+           ggpp::geom_text_npc(
+             data = df.text,
+             mapping = aes(npcx = .data$x, npcy = .data$y, label = .data$name),
+             hjust = hjust,
+             vjust = vjust,
+             parse = TRUE
+           ) +
+           ggplot2::coord_cartesian(clip = 'off')
+   return(plot)
 }
 
 #' @rdname mp_plot_ord-methods
@@ -1485,75 +1537,75 @@ insert_top <- getFromNamespace("insert_top", "aplot")
 insert_left <- getFromNamespace("insert_left", "aplot")
 
 
-#' set the theme of ggplot object with the STAMP style.
-#' @param colour character the color of theme stamp.
-#' @param axis character which grid of axis will be filled, default is 'y'.
-#' @param ... additional parameter, see also 'theme' of 'ggplot2'.
-#' @keywords internal
-theme_stamp <- function(colour=c('white', 'grey90'), axis = 'y', ...){
-    params <- list(...)
-    axis <- match.arg(axis, c('x', 'y'))
-    if ('color' %in% names(params)){
-        colour <- params$color
-        params$color <- NULL
-    }
-    if (length(colour)!=2){
-        message('The colour is not a vector contained two length.')
-        #colour <- c('white', 'grey90')
-    }
-    structure(
-      list(
-        colour = colour, 
-        axis = axis, 
-        params = params
-      ), 
-      class = 'theme_stamp'
-    )
-}
-
-#' @method ggplot_add theme_stamp 
-#' @importFrom ggplot2 element_line geom_tile 
-ggplot_add.theme_stamp <- function(object, plot, object_name){
-    gb <- ggplot2::ggplot_build(plot)
-    axis <- paste0('panel_scales_', object$axis)
-    df <- data.frame(AXIS=gb$layout[[axis]][[1]]$get_labels())
-    len.ind <- length(object$colour)
-    axis.num <- nrow(df)
-    df$GROUP.GRID <- rep(object$colour, ceiling(axis.num/len.ind))[seq_len(axis.num)]
-    if (object$axis == 'y'){
-        grid.tile <- geom_tile(
-                       data = df,
-                       mapping = aes(x = 1, 
-                                     y = !!as.symbol("AXIS"), 
-                                     fill = I(!!as.symbol("GROUP.GRID")), 
-                                     height = 1,
-                                     width=Inf
-                                ),
-                       inherit.aes = FALSE
-                     )
-    }else{
-        grid.tile <- geom_tile(
-                       data = df, 
-                       mapping = aes(x = !!as.symbol("AXIS"),
-                                     y = 1, 
-                                     fill = I(!!as.symbol("GROUP.GRID")), 
-                                     height = Inf,
-                                     width = 1
-                                 ), 
-                       inherit.aes = FALSE
-                     )
-    }
-    plot <- plot + ggnewscale::new_scale_fill() + grid.tile
-    plot$layers <- c(plot$layers[[length(plot$layers)]], plot$layers[-length(plot$layers)])
-    axis.keep <- paste0('axis.line.', setdiff(c('x', 'y'), object$axis))
-    default.theme <- list(element_blank(), element_line())
-    names(default.theme) <- c('panel.background', axis.keep)
-    if (axis.keep %in% names(object$params)){
-        object$params <- c(object$params, default.theme[[-2]])
-    }else{
-        object$params <- c(object$params, default.theme)
-    }
-    th <- do.call("theme", object$params)
-    plot <- plot + th
-    return(plot)
-}
+# #' set the theme of ggplot object with the STAMP style.
+# #' @param colour character the color of theme stamp.
+# #' @param axis character which grid of axis will be filled, default is 'y'.
+# #' @param ... additional parameter, see also 'theme' of 'ggplot2'.
+# #' @keywords internal
+# theme_stamp <- function(colour=c('white', 'grey90'), axis = 'y', ...){
+#     params <- list(...)
+#     axis <- match.arg(axis, c('x', 'y'))
+#     if ('color' %in% names(params)){
+#         colour <- params$color
+#         params$color <- NULL
+#     }
+#     if (length(colour)!=2){
+#         message('The colour is not a vector contained two length.')
+#         #colour <- c('white', 'grey90')
+#     }
+#     structure(
+#       list(
+#         colour = colour, 
+#         axis = axis, 
+#         params = params
+#       ), 
+#       class = 'theme_stamp'
+#     )
+# }
+# 
+# #' @method ggplot_add theme_stamp 
+# #' @importFrom ggplot2 element_line geom_tile 
+# ggplot_add.theme_stamp <- function(object, plot, object_name){
+#     gb <- ggplot2::ggplot_build(plot)
+#     axis <- paste0('panel_scales_', object$axis)
+#     df <- data.frame(AXIS=gb$layout[[axis]][[1]]$get_labels())
+#     len.ind <- length(object$colour)
+#     axis.num <- nrow(df)
+#     df$GROUP.GRID <- rep(object$colour, ceiling(axis.num/len.ind))[seq_len(axis.num)]
+#     if (object$axis == 'y'){
+#         grid.tile <- geom_tile(
+#                        data = df,
+#                        mapping = aes(x = 1, 
+#                                      y = !!as.symbol("AXIS"), 
+#                                      fill = I(!!as.symbol("GROUP.GRID")), 
+#                                      height = 1,
+#                                      width=Inf
+#                                 ),
+#                        inherit.aes = FALSE
+#                      )
+#     }else{
+#         grid.tile <- geom_tile(
+#                        data = df, 
+#                        mapping = aes(x = !!as.symbol("AXIS"),
+#                                      y = 1, 
+#                                      fill = I(!!as.symbol("GROUP.GRID")), 
+#                                      height = Inf,
+#                                      width = 1
+#                                  ), 
+#                        inherit.aes = FALSE
+#                      )
+#     }
+#     plot <- plot + ggnewscale::new_scale_fill() + grid.tile
+#     plot$layers <- c(plot$layers[[length(plot$layers)]], plot$layers[-length(plot$layers)])
+#     axis.keep <- paste0('axis.line.', setdiff(c('x', 'y'), object$axis))
+#     default.theme <- list(element_blank(), element_line())
+#     names(default.theme) <- c('panel.background', axis.keep)
+#     if (axis.keep %in% names(object$params)){
+#         object$params <- c(object$params, default.theme[[-2]])
+#     }else{
+#         object$params <- c(object$params, default.theme)
+#     }
+#     th <- do.call("theme", object$params)
+#     plot <- plot + th
+#     return(plot)
+# }
