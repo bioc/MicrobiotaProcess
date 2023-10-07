@@ -150,6 +150,7 @@ setReplaceMethod("colData", c("MPSE", "NULL"), function(x, ..., value){
 #' @export
 setGeneric("mp_extract_assays", function(x, .abundance, byRow=TRUE, ...)standardGeneric("mp_extract_assays"))
 
+#' @importFrom methods as
 #' @rdname mp_extract_assays-methods
 #' @aliases mp_extract_assays,MPSE
 #' @exportMethod mp_extract_assays
@@ -166,13 +167,12 @@ setMethod("mp_extract_assays", signature(x="MPSE"), function(x, .abundance, byRo
         return(NULL)
     }
 
-    xx <- SummarizedExperiment::assays(x)@listData
-    dat <- xx[[rlang::as_name(.abundance)]]
+    dat <- SummarizedExperiment::assay(x, rlang::as_name(.abundance))
 
     if (byRow){
-        dat %<>% as.data.frame(check.names=FALSE)
+        dat %<>% as('matrix') %>% as.data.frame(check.names=FALSE)
     }else{
-        dat %<>% t() %>% as.data.frame(check.names=FALSE)
+        dat %<>% t() %>% as('matrix') %>% as.data.frame(check.names=FALSE)
     }
     return(dat)
 })
@@ -600,6 +600,7 @@ setGeneric("mp_extract_abundance", function(x, taxa.class="all", topn=NULL, rmun
     
     if (taxa.class!="all"){
         AbundBy <- colnames(da)[vapply(da, is.list, logical(1))]
+        AbundBy <- AbundBy[grepl(paste0(assaysvar, collapse = "|"), AbundBy)]
         dat <- da %>% tidyr::unnest(cols=AbundBy[1])
         clnm <- colnames(dat)[vapply(dat, is.numeric, logical(1))]
         if (rmun){
@@ -784,14 +785,9 @@ setGeneric("mp_extract_dist", function(x, distmethod, type='sample', .group=NULL
                 distinct() %>%
                 tidyr::unnest() %>%
                 suppressWarnings() %>%
-                rename(x=prefix, y=distname, r=distmethod) %>%
-                corrr::retract() %>%
-                tibble::column_to_rownames(var=colnames(.)[1]) %>%
-                magrittr::extract(,rownames(.))
-        #distobj <- distobj[colnames(distobj), ] 
-        distobj[lower.tri(distobj)] <- t(distobj)[lower.tri(t(distobj))]
-        distobj %<>% stats::as.dist() %>%
-                     add_attr(distmethod, "method")
+                rename(x=prefix, y=distname, d=distmethod) %>%
+                .df_to_dist() %>%
+                add_attr(distmethod, 'method')
         return(distobj)
     }else{
         group.y <- paste0(rlang::as_name(.group), ".tmp") %>% as.symbol()
@@ -1313,7 +1309,9 @@ rename_tiplab <- function(treedata, oldname, newname){
         }
     }
     if (length(rmotus) > 0 && length(rmotus) != treeio::Ntip(tree)){
-        otutree <- treeio::drop.tip(tree, tip=rmotus, collapse.singles=collapse.singles)
+        otutree <- treeio::drop.tip(tree, tip=rmotus, collapse.singles=collapse.singles) %>%
+            suppressMessages() %>%
+            suppressWarnings()
     }else{
         otutree <- tree
     }
@@ -1328,8 +1326,8 @@ rename_tiplab <- function(treedata, oldname, newname){
         }
         x <- x[[1]]
     }
-    x <- as.matrix(x)
-    flag <- match(unique(dim(x)), dim(y))
+    x1 <- as.matrix(x)
+    flag <- match(unique(dim(x1)), dim(y))
     if (is.na(flag)){
         stop_wrap('The y is a dist object, but the dimension is different with the x (mpse).')
     }
@@ -1340,10 +1338,8 @@ rename_tiplab <- function(treedata, oldname, newname){
     }
     distsampley <- paste0(distmethod, x.name, 'y')
     x <- x %>%
-        corrr::as_cordf(diagonal=0) %>%
-        corrr::shave() %>%
-        corrr::stretch(na.rm=TRUE) %>%
-        dplyr::rename(!!distmethod:="r", !!distsampley:="y", !!x.name:='x') %>%
+        .dist_to_df() %>%
+        dplyr::rename(!!distmethod:="d", !!distsampley:="y", !!x.name:='x') %>%
         tidyr::nest(!!distmethod:=c(!!as.symbol(distsampley), !!as.symbol(distmethod)))
     return(x)
 }

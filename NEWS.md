@@ -1,3 +1,17 @@
+# MicrobiotaProcess 1.12.4
+
++ fix the issue when `assays` is `dgCMatrix` other sparse matrix class. (2023-09-12, Tue)
++ using internal functions to convert `dist` object to `tbl_df` or `tbl_df` to `dist` in `mp_cal_dist` and
+  fix a bug of `mp_extract_abundance` when `rowData` contains list metadata information. (2023-08-21, Mon)
++ update the doc of `rmun` argument in `mp_plot_abundance` to avoid misunderstanding. (2023-08-18, Fri)
+  <https://github.com/YuLab-SMU/MicrobiotaProcess/issues/99>
++ update `mp_import_humann_regroup()` to keep the abundance of contributed taxa in each sample
+  with `keep.contribute.abundance=TRUE`. (2023-08-15, Tue)
++ use `rlang::check_installed()` to check if a suggested package is installed, which will offer to 
+  install the package before continuing. (2023-08-02, Wed)
++ introduce `order.by.feature` argument in `mp_plot_abundance` to adjust the sample order. (2023-07-24, Mon)
++ update the format of `citation` and suppress the message introduced by `tidytree`. (2023-07-14, Fri)
+
 # MicrobiotaProcess 1.12.3
 
 + update `mp_plot_ord` to display the result of `mp_adonis` with `show.adonis = TRUE`. (2023-06-21, Wed)

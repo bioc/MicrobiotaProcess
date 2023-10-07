@@ -28,14 +28,16 @@
 #' 'median' and 'mcquitty'.
 #' @param .sec.group the column name of second group to be plotted with nested facet,
 #' default is NULL, this argument will be deprecated in the next version.
+#' @param rmun logical whether to group the unknown taxa to \code{Others} category, 
+#' such as "g__un_xxx", default is FALSE, meaning do not group them to \code{Others} category.
+#' @param rm.zero logical whether to display the zero abundance, which only work with geom='heatmap'
+#' default is TRUE.
+#' @param order.by.feature character adjust the order of axis x, default is FALSE, if it is NULL or TRUE,
+#' meaning the order of axis.x will be visualizing with the order of samples by highest abundance of features.
 #' @param ... additional parameters, when the geom = "flowbar", it can specify the parameters of 
 #' 'geom_stratum' of 'ggalluvial', when the geom = 'bar', it can specify the parameters of 
 #' 'geom_bar' of 'ggplot2', when the geom = "heatmap", it can specify the parameter of
 #' 'geom_tile' of 'ggplot2'.
-#' @param rmun logical whether to remove the unknown taxa, such as "g__un_xxx",
-#' default is FALSE (the unknown taxa class will be considered as 'Others').
-#' @param rm.zero logical whether to display the zero abundance, which only work with geom='heatmap'
-#' default is TRUE.
 #' @author Shuangbin Xu
 #' @export
 #' @examples
@@ -96,6 +98,7 @@ setGeneric("mp_plot_abundance",
               .sec.group = NULL,
               rmun = FALSE,
               rm.zero = TRUE,
+              order.by.feature = FALSE,
               ...
            )
            standardGeneric("mp_plot_abundance")
@@ -117,6 +120,7 @@ setGeneric("mp_plot_abundance",
                                 .sec.group = NULL,
                                 rmun = FALSE,
                                 rm.zero = TRUE,
+                                order.by.feature = FALSE,
                                 ...
                                 ){
     .abundance <- rlang::enquo(.abundance)
@@ -232,7 +236,7 @@ setGeneric("mp_plot_abundance",
          }
      }
 
-     
+     check_installed('forcats', "for `mp_plot_abundance()`.") 
      tbl <- .data %>% 
             mp_extract_abundance(taxa.class=!!taxa.class, topn = topn, rmun = rmun) %>%
             tidyr::unnest(cols=AbundBy) %>% 
@@ -242,6 +246,7 @@ setGeneric("mp_plot_abundance",
 
      if(geom %in% c("bar", 'flowbar')){
          if (geom == "flowbar"){
+            check_installed("ggalluvial", "for `mp_plot_abundance()` with geom='flowbar'.")
             p <- ggplot(data = tbl,
                         mapping = aes_string(
                            x = axis.x,
@@ -278,7 +283,7 @@ setGeneric("mp_plot_abundance",
                      gp <- append(gp, gp2, after=1)
                  }
              }
-             if (plot.group && length(gp)>1 ){
+             if (plot.group && length(gp) >1 ){
                  gpformula <- as.formula(paste0(". ~ ", paste0(gp[-1], collapse="+")))
              }else if (!plot.group){
                  gpformula <- as.formula(paste0(". ~ ", paste0(gp, collapse="+")))
@@ -289,6 +294,7 @@ setGeneric("mp_plot_abundance",
              gpformula <- NULL
          }
          if (!is.null(gpformula)){
+             check_installed("ggh4x", "for `mp_plot_abundance()` with geom='bar' or geom='flowbar' and .group was also provided.")
              p <- p + ggh4x::facet_nested(gpformula, scales="free_x", space="free")
          }   
          gb <- ggplot2::ggplot_build(p)
@@ -296,6 +302,40 @@ setGeneric("mp_plot_abundance",
          p <- p + 
               scale_y_continuous(expand = c(0, 0, 0, expand.value)) +
               theme_taxbar()
+         
+         if (is.null(order.by.feature) || isTRUE(order.by.feature)){
+             order.by.feature <- p$data %>%
+                 split(.[[rlang::as_name(taxa.class)]]) %>%
+                 lapply(function(x)sum(x[[abundance.nm]])) %>% 
+                 unlist() %>%
+                 sort() %>% 
+                 rev() %>%
+                 magrittr::extract(seq_len(2)) %>% 
+                 names() %>%
+                 setdiff("Others") %>%
+                 magrittr::extract2(1)
+         }
+         
+         if (order.by.feature %in% (p$data %>% dplyr::pull(!!taxa.class) %>% levels())){
+             if (plot.group && !rlang::quo_is_null(.group)){
+                 gp <- quo.vect_to_str.vect(.group)
+                 if (length(gp) >= 1){
+                     new.levels <- p$data[p$data[[rlang::as_name(taxa.class)]]==order.by.feature,] %>%
+                         dplyr::arrange(dplyr::desc(!!rlang::sym(abundance.nm))) %>%
+                         dplyr::pull(gp[[1]]) %>%
+                         as.character() %>%
+                         rev()
+                     p$data %<>% dplyr::mutate(!!rlang::sym(axis.x):=factor(!!rlang::sym(axis.x), levels = new.levels))
+                 }
+             }else{
+                 sample.new.levels <- p$data[p$data[[rlang::as_name(taxa.class)]] == order.by.feature,] %>%
+                     dplyr::arrange(dplyr::desc(!!rlang::sym(abundance.nm))) %>% 
+                     dplyr::pull(.data$Sample) %>% 
+                     as.character() %>%
+                     rev()
+                 p$data %<>% dplyr::mutate(!!rlang::sym(axis.x):=factor(!!rlang::sym(axis.x), levels = sample.new.levels)) 
+             }
+         }
 
      }else if(geom=="heatmap"){
          lab.sty <- list(xlab(NULL),ylab(NULL))
@@ -359,10 +399,10 @@ setGeneric("mp_plot_abundance",
              gp %<>% unique()
              for (i in seq_len(length(gp))){
                  sampleda <- .data %>% mp_extract_sample()
-                 f <- ggplot() +
+                 f <- ggplot(data=sampleda, mapping = aes(x=!!rlang::sym("Sample"), y=gp[i], fill=!!rlang::sym(gp[i]))) +
                       ggplot2::geom_tile(
-                         data = sampleda,
-                         mapping = aes(x=!!rlang::sym("Sample"), y=gp[i], fill=!!rlang::sym(gp[i]))
+                         #data = sampleda,
+                         #mapping = aes(x=!!rlang::sym("Sample"), y=gp[i], fill=!!rlang::sym(gp[i]))
                       ) +
                       ggplot2::scale_y_discrete(position="right", expand = c(0, 0), labels=gp[i]) +
                       theme(axis.text.x=element_blank(), 
@@ -376,6 +416,7 @@ setGeneric("mp_plot_abundance",
          }
          p2 <- ggtree(feature.hclust, branch.length = "none", size = 0.8)
          p3 <- ggtree(sample.hc, branch.length = "none", size = 0.8, layout = "dendrogram")
+         check_installed("aplot", "for `mp_plot_abundance()` with geom='heatmap'.")
          p %<>% insert_left(p2, width = 0.1)
          if (!rlang::quo_is_null(.group)){
              p %<>% insert_top(p3, height = 0.1 + 0.01 * length(gp))
@@ -496,7 +537,7 @@ setGeneric("mp_plot_alpha",
     }
 
     p <- ggplot(data=tbl, mapping = mapping)
-
+    check_installed(c("gghalves", "ggsignif", "ggh4x"), "for `mp_plot_alpha()`.")
     if (!is.null(gp)){
         if (is.numeric(tbl[[gp[1]]])){
            if (length(gp) > 1 ){
@@ -591,6 +632,7 @@ setGeneric("mp_plot_venn", function(.data, .group, .venn=NULL, ...) standardGene
     if (rlang::quo_is_null(.venn)){
         .venn <- rlang::sym(paste0("vennOf", rlang::as_name(.group)))
     }
+    check_installed("ggVennDiagram", "for `mp_plot_venn()`.")
     p <- .data %>% 
         mp_extract_sample() %>% 
         dplyr::select(!!.group, !!.venn) %>% 
@@ -642,7 +684,7 @@ setGeneric("mp_plot_upset", function(.data, .group, .upset=NULL, ...) standardGe
     if (rlang::quo_is_null(.upset)){
         .upset <- rlang::sym(paste0("ggupsetOf", rlang::as_name(.group)))
     }
-
+    check_installed('ggupset', 'for `mp_plot_upset()`.')
     p <- .data %>%
          mp_extract_feature() %>%
          dplyr::select(!!rlang::sym("OTU"), !!.upset) %>%
@@ -1207,6 +1249,7 @@ setGeneric("mp_plot_ord", function(
                          )
     if (show.side){
        if ("fill" %in% names(maps) && !is.discrete(tbl, maps, "fill")){
+           check_installed("ggside", "for `mp_plot_ord()` with show.side = TRUE.")
            side.y <- do.call(ggside::geom_xsideboxplot, 
                              list(mapping=aes(y=!!.group), color = "black", orientation = "y", show.legend = FALSE)) %>%
                      suppressMessages()
@@ -1248,6 +1291,7 @@ setGeneric("mp_plot_ord", function(
     }
 
     if (show.sample){
+        check_installed("ggrepel", "for `mp_plot_ord()` with show.sample = TRUE.")
         text.layer <- do.call(ggrepel::geom_text_repel, labelparams) 
         p <- p + text.layer
     }
@@ -1361,6 +1405,7 @@ setGeneric("mp_plot_ord", function(
     }
 
     if (show.adonis){
+        check_installed("ggpp", "for `mp_plot_ord()` with show.adonis=TRUE.")
         p <- .add_adonis_layer(plot = p, data=.data, show.side = show.side)
     }
 
