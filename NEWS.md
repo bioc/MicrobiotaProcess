@@ -1,10 +1,10 @@
-# MicrobiotaProcess 1.15.990
+# MicrobiotaProcess 1.14.1
 
 + update `mp_plot_diff_cladogram` with `tidytree` and `treeio`. (2024-03-26, Tue)
 
-# MicrobiotaProcess 1.15.0
+# MicrobiotaProcess 1.14.0
 
-+ Bioconductor 3.18 released and Bioconductor 3.19 (devel) version bump. (2023-10-25, Wed)
++ Bioconductor 3.18 released (1.14.0) and Bioconductor 3.19 (1.15.0) devel version bump. (2023-10-25, Wed)
 
 # MicrobiotaProcess 1.13.3
 
