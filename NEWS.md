@@ -1,3 +1,11 @@
+# MicrobiotaProcess 1.20.0
+
++ Bioconductor 3.21 released, and Bioconductor 3.22 (devel) bump. (2025-04-17, Thu)
+
+# MicrobiotaProcess 1.19.0
+
++ Bioconductor 3.20 release, and Biocondutor 3.21 (devel) version bump. (2024-10-31, Thu)
+
 # MicrobiotaProcess 1.17.1
 
 + update `scale_fill_diff_cladogram` to be compatible with `ggnewscale` >= 0.5.0 (2024-07-24, Wed)
